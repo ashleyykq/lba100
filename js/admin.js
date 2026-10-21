@@ -113,7 +113,7 @@ function renderAdmin() {
   const { records } = state;
   const q = $("apSearch").value.trim().toLowerCase();
   const all = records.map((r, i) => ({ r, n: i + 1 })).reverse();
-  const rows = q ? all.filter(({ r }) => [r.name, r.svc, r.shared, r.addedBy].join(" ").toLowerCase().includes(q)) : all;
+  const rows = q ? all.filter(({ r }) => [r.name, r.broughtBy, r.svc, r.shared, r.addedBy].join(" ").toLowerCase().includes(q)) : all;
   $("apCount").textContent = `${records.length} ${records.length === 1 ? "person" : "people"}` + (q ? ` · ${rows.length} shown` : "");
   $("apEmpty").hidden = rows.length > 0;
   $("apEmpty").textContent = records.length ? "No one matches that search." : "No one on the wall yet.";
@@ -143,6 +143,7 @@ function renderAdmin() {
     tr.appendChild(inputCell("date", r.date, "c-date", "date"));
     tr.appendChild(inputCell("svc", r.svc, "c-svc"));
     tr.appendChild(inputCell("shared", r.shared, "c-shared", "textarea"));
+    tr.appendChild(el("td", "c-brought", r.broughtBy || "—"));
     tr.appendChild(inputCell("added_by", r.addedBy, "c-by"));
     tr.appendChild(el("td", "added", fmtAdded(r.createdAt)));
 

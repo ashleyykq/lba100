@@ -6,10 +6,11 @@ import { initTheme } from "./theme.js";
 import { toast } from "./toast.js";
 import { demo, load, onLoad, watchForChanges } from "./data.js";
 import { onTileClick, renderMosaic, setCount, celebrate } from "./mosaic.js";
-import { renderDeck, showInDeck, isDragging } from "./deck.js";
-import { openModal, closeModal, isModalOpen, renderSvcChips } from "./add-person.js";
+import { renderDeck, showInDeck } from "./deck.js";
+import { openModal, closeModal, isModalOpen } from "./add-person.js";
 import { refreshAdmin, closeAdmin, closeAdminLogin, isAdminLoginOpen } from "./admin.js";
 import { initLock } from "./lock.js";
+import { closePerson, isPersonOpen } from "./person.js";
 
 initTheme();
 initTelegram();
@@ -25,10 +26,8 @@ onLoad((records) => {
   state.records = records;
   setCount(records.length);
   renderMosaic();
-  renderSvcChips();
   refreshAdmin();
   if (fresh.length) {
-    if (!isDragging()) state.currentId = fresh[fresh.length - 1].id;
     for (const r of fresh) {
       if (r.id === state.ownPending) continue;
       celebrate(r.id);
@@ -55,7 +54,8 @@ $("cue").addEventListener("click", (e) => { e.preventDefault(); scrollToNewest()
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (isModalOpen()) closeModal();
+  if (isPersonOpen()) closePerson();
+  else if (isModalOpen()) closeModal();
   else if (isAdminLoginOpen()) closeAdminLogin();
   else if (state.adminOpen) closeAdmin();
 });

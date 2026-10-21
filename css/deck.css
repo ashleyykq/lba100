@@ -1,4 +1,4 @@
-/* Screen 2: an endless swipe deck of everyone, newest first. */
+/* Screen 2: everyone, newest first, as horizontal cards shown ten at a time. */
 .newest {
   max-width: 820px; margin: 0 auto; padding-block: 48px 24px;
   display: grid; gap: 24px; justify-items: center;
@@ -10,66 +10,94 @@
 }
 .newest-head p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
 
+/* The window: ten cards plus half of the 11th (height set in deck.js). The 11th fades out at the bottom. */
 .deck {
-  display: grid; width: min(100%, 380px); touch-action: pan-y; user-select: none; -webkit-user-select: none;
-  padding-bottom: 20px; /* room for stacked cards peeking below */
+  width: min(100%, 560px); position: relative; overflow: hidden; border-radius: 18px;
+  transition: height .45s cubic-bezier(.2,.9,.3,1);
 }
-.card {
-  grid-area: 1 / 1; background: var(--surface); border-radius: 22px; overflow: hidden;
-  box-shadow: 0 1px 0 var(--line), 0 14px 34px -14px var(--shadow);
-  display: grid; grid-template-rows: auto 1fr; min-width: 0;
-  transform-origin: 50% 100%; will-change: transform;
-}
-.card.top { z-index: 3; cursor: grab; animation: rise .35s cubic-bezier(.2,.9,.3,1.1); }
-.card.top:active { cursor: grabbing; }
-.card.second { z-index: 2; transform: translateY(12px) scale(.94); filter: brightness(.97); pointer-events: none; }
-.card.third { z-index: 1; transform: translateY(24px) scale(.88); filter: brightness(.94); pointer-events: none; }
-@keyframes rise { from { transform: translateY(12px) scale(.94); } to { transform: none; } }
+.deck.peek { -webkit-mask-image: linear-gradient(#000 calc(100% - 56px), transparent); mask-image: linear-gradient(#000 calc(100% - 56px), transparent); }
+.track { display: grid; gap: 6px; transition: transform .6s cubic-bezier(.65,0,.25,1); will-change: transform; }
 
-.photo { position: relative; aspect-ratio: 1; max-width: 100%; background: var(--tile); overflow: hidden; }
+/* Compact row: small square photo, then name + expand button, then date + brought by. */
+.card {
+  display: grid; grid-template-columns: 60px 1fr; gap: 12px; align-items: center;
+  background: var(--surface); border-radius: 14px; padding: 8px 10px 8px 8px; min-width: 0;
+  box-shadow: 0 1px 0 var(--line);
+  transition: box-shadow .3s;
+}
+.card.peeking { cursor: pointer; }
+.card.focus { box-shadow: 0 0 0 2px var(--accent); }
+
+.photo { position: relative; aspect-ratio: 1; border-radius: 10px; background: var(--tile); overflow: hidden; }
 .photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
-.photo img.blur { filter: blur(14px); transform: scale(1.12); }
+.photo img.blur { filter: blur(6px); transform: scale(1.12); }
 .initials {
   position: absolute; inset: 0; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink);
-  font-family: var(--font-display); font-weight: 800; font-size: 96px; letter-spacing: -.04em;
+  font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -.04em;
 }
-.badge {
-  position: absolute; top: 12px; left: 12px; z-index: 2;
-  font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .04em;
-  background: var(--surface); color: var(--fg); border-radius: 999px; padding: 5px 10px;
-  font-variant-numeric: tabular-nums;
+.num {
+  position: absolute; top: 3px; left: 3px; z-index: 1; min-width: 18px; text-align: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500; line-height: 1.5; font-variant-numeric: tabular-nums;
+  background: var(--surface); color: var(--fg); border-radius: 999px; padding: 0 5px;
 }
-.badge.new { left: auto; right: 12px; background: var(--fg); color: var(--bg); animation: blink 1.6s ease-in-out infinite; }
-@keyframes blink { 50% { transform: scale(1.06); } }
 
-.meta { padding: 16px 18px 18px; display: grid; gap: 8px; align-content: start; min-height: 168px; min-width: 0; }
-.name { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.05; margin: 0; overflow-wrap: anywhere; }
+.meta { display: grid; gap: 2px; align-content: center; min-width: 0; }
+.name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.name {
+  font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive; font-weight: 600; font-size: 24px; line-height: 1;
+  margin: 0; min-width: 0; padding: 0 6px 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
-  font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
-  background: var(--accent-soft); color: var(--fg); overflow-wrap: anywhere;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; line-height: 1.5;
+  background: var(--bg); color: var(--muted); border-radius: 999px; padding: 2px 9px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.chip.date { background: transparent; border: 1px solid var(--line); font-family: var(--font-mono); font-weight: 400; font-variant-numeric: tabular-nums; }
 .shared {
-  margin: 2px 0 0; font-size: 15px; color: var(--fg); line-height: 1.45;
-  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  margin: 0; font-size: 14px; color: var(--fg); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
 .shared::before { content: "\201C"; font-family: var(--font-display); font-weight: 800; color: var(--accent); margin-right: 2px; }
 .shared::after { content: "\201D"; font-family: var(--font-display); font-weight: 800; color: var(--accent); margin-left: 1px; }
 .shared.none { color: var(--muted); }
 .shared.none::before, .shared.none::after { content: none; }
 
-.signoff {
-  margin: 6px 0 0; padding-top: 10px; border-top: 1px dashed var(--line);
-  display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
-  font-size: 13px; color: var(--muted);
+.card-foot {
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 8px;
+  padding-top: 6px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--muted); min-width: 0;
 }
+.added-by { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.signoff { display: flex; align-items: baseline; gap: 6px; flex: none; max-width: 60%; margin-left: 12px; }
 .signoff .sig {
-  font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive; font-weight: 600; font-size: 24px; line-height: 1;
-  color: var(--accent); transform: rotate(-3deg); display: inline-block; overflow-wrap: anywhere;
+  font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive; font-weight: 600; font-size: 19px; line-height: 1;
+  color: var(--accent); transform: rotate(-3deg); display: inline-block; padding: 0 6px 3px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.empty { grid-area: 1/1; padding: 40px 24px; text-align: center; border: 1.5px dashed var(--line); border-radius: 22px; color: var(--muted); }
+.info-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); min-width: 0; }
+.info-row .date { font-family: var(--font-mono); font-variant-numeric: tabular-nums; flex: none; }
+
+/* Expand button, top right of each card: opens the full details. */
+.more-btn {
+  flex: none; margin-left: auto; width: 28px; height: 28px; border-radius: 50%; padding: 0;
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+  display: grid; place-items: center; cursor: pointer; transition: border-color .15s, color .15s, transform .12s;
+}
+.more-btn svg { width: 13px; height: 13px; }
+.more-btn:hover { border-color: var(--accent); color: var(--fg); }
+.more-btn:active { transform: scale(.95); }
+
+/* The "View more" sheet. */
+.person-sheet { display: grid; gap: 14px; }
+.person-sheet .sheet-head { margin-bottom: 0; }
+.sheet .person-name { font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive; font-weight: 600; font-size: 40px; padding-right: 6px; }
+.person-photo { width: min(100%, 280px); justify-self: center; border-radius: 18px; }
+.person-photo .initials { font-size: 80px; }
+.shared.full { -webkit-line-clamp: unset; display: block; font-size: 16px; line-height: 1.5; }
+.person-sheet .card-foot { justify-content: space-between; font-size: 13px; padding-top: 10px; }
+.person-sheet .sig { font-size: 24px; }
+
+.empty { padding: 40px 24px; text-align: center; border: 1.5px dashed var(--line); border-radius: 22px; color: var(--muted); }
 .empty strong { display: block; font-family: var(--font-display); font-size: 22px; color: var(--fg); margin-bottom: 6px; }
 
 .deck-nav { display: flex; align-items: center; gap: 14px; }
@@ -80,5 +108,4 @@
 .nav-btn:active { transform: scale(.9); }
 .nav-btn svg { width: 18px; height: 18px; }
 .nav-btn:disabled { opacity: .4; cursor: default; }
-.pos { font-family: var(--font-mono); font-size: 14px; min-width: 76px; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); }
-.swipe-hint { font-size: 13px; color: var(--muted); margin-top: -10px; }
+.pos { font-family: var(--font-mono); font-size: 14px; min-width: 110px; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); }

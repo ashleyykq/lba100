@@ -25,21 +25,21 @@ form { display: grid; gap: 14px; }
 .field .opt { font-weight: 400; color: var(--muted); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
-input[type="text"], input[type="date"], textarea {
+input[type="text"], input[type="date"], select, textarea {
   width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
   border: 1.5px solid transparent; border-radius: 12px; padding: 11px 13px;
   transition: border-color .15s, background-color .15s;
 }
-input:focus, textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
-textarea { resize: vertical; min-height: 84px; }
-
-.svc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.svc-chip {
-  justify-self: start; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
-  padding: 5px 12px; font-size: 13px; font-weight: 500; cursor: pointer; transition: transform .12s, border-color .15s;
+select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 14px;
 }
-.svc-chip:active { transform: scale(.95); }
-.svc-chip.on { background: var(--accent-soft); border-color: var(--accent); }
+select:invalid { color: var(--muted); }
+.auto-val { font-size: 16px; padding: 11px 13px; border-radius: 12px; border: 1.5px dashed var(--line); color: var(--muted); }
+.auto-val b { color: var(--fg); font-weight: 600; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+textarea { resize: vertical; min-height: 84px; }
 
 .photo-pick {
   position: relative; display: flex; align-items: center; gap: 14px; padding: 10px; cursor: pointer;

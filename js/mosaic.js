@@ -11,18 +11,20 @@ const GLYPHS = {
 const SPACE = 2, ROWS = 9;
 const cells = [];
 let x = 0;
-for (const ch of "LBA") {
+[..."LBA"].forEach((ch, letter) => {
   const g = GLYPHS[ch];
-  g.forEach((row, r) => [...row].forEach((v, c) => { if (v === "X") cells.push({ r, c: x + c }); }));
+  g.forEach((row, r) => [...row].forEach((v, c) => { if (v === "X") cells.push({ r, c: x + c, letter }); }));
   x += g[0].length + SPACE;
-}
+});
 const COLS = x - SPACE;
 const mosaic = $("mosaic");
 mosaic.style.setProperty("--cols", COLS);
 mosaic.style.setProperty("--rows", ROWS);
 
-// Fill order: reading order across the whole word. First person = top-left tile, row by row, last = bottom-right.
-const fillOrder = cells.map((_, i) => i).sort((a, b) => cells[a].r - cells[b].r || cells[a].c - cells[b].c);
+// Fill order: letter by letter (L, then B, then A). Inside each letter, top row to bottom row,
+// and each row from left to right. First person = top-left tile of the L.
+const fillOrder = cells.map((_, i) => i).sort((a, b) =>
+  cells[a].letter - cells[b].letter || cells[a].r - cells[b].r || cells[a].c - cells[b].c);
 
 const tiles = cells.map(({ r, c }) => {
   const b = document.createElement("button");

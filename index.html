@@ -82,20 +82,19 @@
       <div>
         <div class="eyebrow">Newest first</div>
         <h2 id="t2">Newest added</h2>
-        <p>Swipe through everyone on the wall. It loops back to the start.</p>
+        <!-- <p>Ten at a time. Tap the arrows to see the next ten.</p> -->
       </div>
     </div>
 
-    <div class="deck" id="deck" tabindex="0" aria-roledescription="carousel" aria-label="People who joined"></div>
-    <p class="swipe-hint" id="hint" hidden>Swipe left or right</p>
+    <div class="deck" id="deck" tabindex="0" role="region" aria-label="People who joined, ten at a time"></div>
 
     <div class="deck-nav">
-      <button class="nav-btn" id="prevBtn" aria-label="Newer person">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+      <button class="nav-btn" id="prevBtn" aria-label="Previous ten (newer)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 5-5 5 5"/></svg>
       </button>
-      <span class="pos" id="pos">0 / 0</span>
-      <button class="nav-btn" id="nextBtn" aria-label="Older person">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+      <span class="pos" id="pos">0 of 0</span>
+      <button class="nav-btn" id="nextBtn" aria-label="Next ten (older)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5 5 5-5"/></svg>
       </button>
     </div>
   </section>
@@ -136,6 +135,10 @@
         <label for="fName">Name</label>
         <input type="text" id="fName" autocomplete="name" maxlength="60" placeholder="e.g. Tan Mei Ling" required>
       </div>
+      <div class="field">
+        <label for="fBy">Brought by</label>
+        <input type="text" id="fBy" maxlength="60" placeholder="Who brought them" required>
+      </div>
       <div class="row2">
         <div class="field">
           <label for="fDate">Date</label>
@@ -143,10 +146,15 @@
         </div>
         <div class="field">
           <label for="fSvc">Which service</label>
-          <input type="text" id="fSvc" maxlength="40" placeholder="e.g. Youth svc" required>
+          <select id="fSvc" required>
+            <option value="" disabled selected>Choose one</option>
+            <option>Service 1</option>
+            <option>Service 2</option>
+            <option>Service 3</option>
+            <option>CG meeting</option>
+          </select>
         </div>
       </div>
-      <div class="svc-chips" id="svcChips" hidden></div>
       <div class="field">
         <label for="fShared">What they shared <span class="opt">(optional)</span></label>
         <textarea id="fShared" maxlength="400" placeholder="A line or two from their sharing"></textarea>
@@ -159,9 +167,31 @@
           <input type="file" id="fPhoto" accept="image/*">
         </label>
       </div>
+      <div class="field">
+        <span class="lbl">Added by</span>
+        <div class="auto-val" id="fAddedBy"></div>
+      </div>
       <p class="err" id="formErr" role="alert" hidden></p>
       <button class="submit" id="submitBtn" type="submit">Add to the wall</button>
     </form>
+  </div>
+</div>
+
+<div class="scrim" id="person" hidden>
+  <div class="sheet person-sheet" role="dialog" aria-modal="true" aria-labelledby="pName">
+    <div class="sheet-head">
+      <div>
+        <div class="eyebrow" id="pSpot">No. 1 of 100</div>
+        <h3 class="person-name" id="pName"></h3>
+      </div>
+      <button class="close" id="pClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+      </button>
+    </div>
+    <div class="photo person-photo" id="pPhoto"></div>
+    <div class="chips" id="pChips"></div>
+    <p class="shared full" id="pShared"></p>
+    <div class="card-foot" id="pFoot"></div>
   </div>
 </div>
 
@@ -205,7 +235,7 @@
   <div class="admin-scroll">
     <table class="admin-table">
       <thead>
-        <tr><th>No.</th><th>Photo</th><th>Name</th><th>Date</th><th>Service</th><th>What they shared</th><th>Added by</th><th>Added on</th><th>Status</th><th></th></tr>
+        <tr><th>No.</th><th>Photo</th><th>Name</th><th>Date</th><th>Service</th><th>What they shared</th><th>Brought by</th><th>Added by</th><th>Added on</th><th>Status</th><th></th></tr>
       </thead>
       <tbody id="apBody"></tbody>
     </table>

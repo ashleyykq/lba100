@@ -10,6 +10,7 @@ export const demo = !sb;
 
 const demoRows = [];     // demo mode only; gone when the page closes
 let hasAddedBy = true;   // false if the database doesn't have the sign-off column yet
+let hasBroughtBy = true; // false if the database doesn't have the brought_by column yet
 
 /* ---------- Rows → records ---------- */
 const safeThumb = (s) => typeof s === "string" && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s) ? s : null;
@@ -31,6 +32,7 @@ function clean(d) {
     photo: photoUrl(d.photo_path),
     createdAt: Date.parse(d.created_at) || 0,
     addedBy: str(d.added_by, 60).trim(),
+    broughtBy: str(d.brought_by, 60).trim(),
     photoPath: typeof d.photo_path === "string" ? d.photo_path : null,
   };
 }
@@ -44,10 +46,12 @@ export async function load() {
   if (demo) { handlers.records(demoRows.map(clean)); return; }
   const fetchRows = (cols) => sb.from("entries").select(cols).order("created_at", { ascending: true }).limit(1000);
   const BASE = "id,created_at,name,date,svc,shared,thumb,photo_path";
-  let { data, error } = await fetchRows(hasAddedBy ? BASE + ",added_by" : BASE);
-  if (error && hasAddedBy && /added_by/.test(error.message || "")) {
-    hasAddedBy = false;
-    ({ data, error } = await fetchRows(BASE));
+  const cols = () => BASE + (hasAddedBy ? ",added_by" : "") + (hasBroughtBy ? ",brought_by" : "");
+  let { data, error } = await fetchRows(cols());
+  // Drop optional columns the database doesn't have yet, one at a time.
+  while (error && (hasAddedBy && /added_by/.test(error.message || "") || hasBroughtBy && /brought_by/.test(error.message || ""))) {
+    if (hasAddedBy && /added_by/.test(error.message)) hasAddedBy = false; else hasBroughtBy = false;
+    ({ data, error } = await fetchRows(cols()));
   }
   if (error) { handlers.failed(); return; }
   handlers.records((data || []).map(clean));
@@ -79,13 +83,17 @@ export async function addEntry(id, fields, photo) {
   }
   const row = { id, ...fields, thumb: photo ? photo.thumb : null, photo_path };
   if (tgName && hasAddedBy) row.added_by = tgName;
+  if (!hasBroughtBy) delete row.brought_by;
   if (demo) {
     demoRows.push({ ...row, created_at: new Date().toISOString(), _blobUrl: photo ? URL.createObjectURL(photo.blob) : null });
     return;
   }
   let ins = await sb.from("entries").insert(row);
-  if (ins.error && "added_by" in row && /added_by/.test(ins.error.message || "")) {
-    hasAddedBy = false; delete row.added_by;
+  // Drop optional columns the database doesn't have yet, one at a time.
+  const missingCol = () => ["added_by", "brought_by"].find((c) => c in row && (ins.error.message || "").includes(c));
+  for (let c; ins.error && (c = missingCol());) {
+    if (c === "added_by") hasAddedBy = false; else hasBroughtBy = false;
+    delete row[c];
     ins = await sb.from("entries").insert(row);
   }
   if (ins.error) throw { stage: "row", error: ins.error };

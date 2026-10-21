@@ -63,6 +63,7 @@
 .admin-table .c-by { width: 150px; min-width: 150px; }
 .admin-table td.ph-td { min-width: 120px; }
 
+.c-brought { font-size: 14px; padding-top: 13px !important; min-width: 140px; overflow-wrap: anywhere; }
 .added { font-size: 13px; color: var(--muted); padding-top: 13px !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ph-cell { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
 .ph-mini {

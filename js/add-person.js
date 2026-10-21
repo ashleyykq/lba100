@@ -1,7 +1,7 @@
 // The "Add one more" sheet.
 import { $, CAMERA_SVG, reduceMotion, scrollBehavior } from "./dom.js";
 import { GOAL, state, rankOf } from "./state.js";
-import { haptic, tgBack } from "./telegram.js";
+import { haptic, tgBack, tgName } from "./telegram.js";
 import { todayISO, uuid } from "./utils.js";
 import { toast } from "./toast.js";
 import { processPhoto } from "./photo.js";
@@ -21,7 +21,6 @@ export function openModal() {
   $("mSpot").textContent = k < GOAL ? `No. ${k + 1} of ${GOAL}` : `No. ${k + 1} · beyond the goal`;
   if (!$("fDate").value) $("fDate").value = todayISO();
   $("formErr").hidden = true;
-  renderSvcChips();
   modal.hidden = false;
   document.body.style.overflow = "hidden";
   tgBack(closeModal);
@@ -37,23 +36,9 @@ $("addBtn").addEventListener("click", () => { haptic.tap(); openModal(); });
 $("closeBtn").addEventListener("click", closeModal);
 modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 
-/* ---------- Service shortcuts: the six most used services, one tap to fill ---------- */
-export function renderSvcChips() {
-  const counts = new Map();
-  state.records.forEach((r) => { if (r.svc) counts.set(r.svc, (counts.get(r.svc) || 0) + 1); });
-  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map((e) => e[0]);
-  const box = $("svcChips");
-  box.textContent = "";
-  box.hidden = !top.length;
-  const cur = $("fSvc").value.trim();
-  top.forEach((s) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "svc-chip" + (s === cur ? " on" : ""); b.textContent = s;
-    b.addEventListener("click", () => { $("fSvc").value = s; haptic.tick(); renderSvcChips(); });
-    box.appendChild(b);
-  });
-}
-$("fSvc").addEventListener("input", renderSvcChips);
+/* ---------- Added by: filled in from the Telegram account, not editable ---------- */
+if (tgName) { const b = document.createElement("b"); b.textContent = tgName; $("fAddedBy").appendChild(b); }
+else $("fAddedBy").textContent = "Your Telegram name (open the wall in Telegram)";
 
 /* ---------- Photo ---------- */
 function resetPhoto(title, sub) {
@@ -89,8 +74,8 @@ function resetForm() {
 $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = $("formErr");
-  const name = $("fName").value.trim(), date = $("fDate").value, svc = $("fSvc").value.trim(), shared = $("fShared").value.trim();
-  const missing = [!name && "a name", !date && "a date", !svc && "the service"].filter(Boolean);
+  const name = $("fName").value.trim(), brought_by = $("fBy").value.trim(), date = $("fDate").value, svc = $("fSvc").value, shared = $("fShared").value.trim();
+  const missing = [!name && "a name", !brought_by && "who brought them", !date && "a date", !svc && "the service"].filter(Boolean);
   if (missing.length) { err.textContent = `Add ${missing.join(", ")} to continue.`; err.hidden = false; haptic.bad(); return; }
 
   const btn = $("submitBtn");
@@ -98,7 +83,7 @@ $("form").addEventListener("submit", async (e) => {
   const id = uuid();
   state.ownPending = id; // so the live update doesn't celebrate it twice
   try {
-    await addEntry(id, { name, date, svc, shared }, photo);
+    await addEntry(id, { name, brought_by, date, svc, shared }, photo);
     await load();
     closeModal();
     resetForm();
