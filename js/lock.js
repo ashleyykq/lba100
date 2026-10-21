@@ -5,7 +5,7 @@ import { replayEntrance } from "./mosaic.js";
 
 // SHA-256 of the password, so the password itself isn't written in this file.
 // To change it: replace this with the SHA-256 of the new password (lowercase).
-const PASSWORD_HASH = "3a2c303164680af0109092b6e654db91481443c1e18a5b311390ad3438119748";
+const PASSWORD_HASH = "bbfcfcbad2e1064aadb2ed9e296a1190ea8600d2ca70b2399a9d408f46b35330";
 const UNLOCK_KEY = "lba100-unlocked";
 const WRONG = [
   ["Nope. That password is un-LBA-lievable.", "Try again, we believe in you."],
