@@ -1,0 +1,25 @@
+/* The floating "+1 more" sticker, bottom-right. */
+.sticker {
+  position: fixed; z-index: 30;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px)));
+  width: 112px; height: 112px; border: 0; padding: 0; background: none; cursor: pointer;
+  transform: rotate(-9deg); filter: drop-shadow(0 8px 14px var(--shadow));
+  transition: transform .25s cubic-bezier(.3,1.6,.5,1);
+  -webkit-tap-highlight-color: transparent;
+}
+.sticker .wob { position: absolute; inset: 0; display: block; animation: wobble 5s ease-in-out 2s infinite; }
+.sticker svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sticker .edge { fill: var(--sticker-edge); }
+.sticker .face { fill: var(--accent); }
+.sticker text { fill: var(--accent-ink); font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .5px; }
+.sticker .spin { transform-box: view-box; transform-origin: 50% 50%; animation: spin 16s linear infinite; }
+.sticker .core {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--accent-ink); pointer-events: none;
+}
+.sticker .core b { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: .9; letter-spacing: -.03em; }
+.sticker .core small { font-family: var(--font-display); font-weight: 700; font-size: 14px; line-height: 1; }
+@media (hover: hover) { .sticker:hover { transform: rotate(4deg) scale(1.07); } }
+.sticker:active { transform: rotate(0) scale(.9); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes wobble { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(7deg) scale(1.07); } 94% { transform: rotate(-5deg); } }

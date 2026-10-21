@@ -1,0 +1,84 @@
+/* Footer admin button, admin login, and the full-screen admin table. */
+.foot { display: flex; justify-content: center; padding-block: 24px 150px; }
+.admin-btn {
+  display: inline-flex; align-items: center; gap: 7px; background: none; cursor: pointer;
+  border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 7px 14px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  transition: color .2s, border-color .2s;
+}
+.admin-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.admin-btn:hover, .admin-btn:focus-visible { color: var(--fg); border-color: var(--muted); }
+
+.admin-demo { margin: 0; font-size: 13px; background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; }
+#adminLogin input[type="password"] { background: var(--bg); border-color: transparent; }
+#adminLogin input[type="password"]:focus { border-color: var(--accent); outline: none; }
+
+.admin {
+  position: fixed; inset: 0; z-index: 55; background: var(--bg);
+  display: flex; flex-direction: column; animation: up .3s cubic-bezier(.2,.9,.3,1.05);
+  padding-top: calc(var(--tg-content-safe-area-inset-top, 0px) + env(safe-area-inset-top, 0px));
+}
+.admin-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center;
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.admin-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.05; margin: 2px 0 0; }
+.admin-count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.admin-tools { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.admin-tools input[type="search"] {
+  flex: 1 1 220px; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
+  border: 1.5px solid transparent; border-radius: 10px; padding: 9px 12px;
+}
+.admin-tools input[type="search"]:focus { outline: none; border-color: var(--accent); }
+.admin-hint { font-size: 13px; color: var(--muted); }
+.admin-close { width: 40px; height: 40px; }
+.admin-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.admin-empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+.admin-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1120px; font-size: 14px; }
+.admin-table th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface); text-align: left; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  padding: 10px 8px; border-bottom: 1px solid var(--line);
+}
+.admin-table td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; background: var(--bg); }
+.admin-table th:first-child, .admin-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+.admin-table th:first-child { z-index: 3; }
+.admin-table td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); padding-top: 14px; white-space: nowrap; }
+.admin-table tr.removing td { opacity: 0; transition: opacity .3s; }
+.admin-table tr.saved td { animation: flash 1s ease; }
+@keyframes flash { 0% { background: var(--accent-soft); } 100% { background: var(--bg); } }
+.admin-table .cell-input {
+  display: block; font: inherit; font-size: 15px; color: var(--fg); background: transparent;
+  border: 1.5px solid transparent; border-radius: 8px; padding: 7px 8px;
+}
+.admin-table .cell-input:hover { border-color: var(--line); }
+.admin-table .cell-input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.admin-table textarea.cell-input { min-height: 40px; resize: vertical; line-height: 1.4; }
+.admin-table .c-name { width: 180px; min-width: 180px; }
+.admin-table .c-date { width: 160px; min-width: 160px; }
+.admin-table .c-svc { width: 140px; min-width: 140px; }
+.admin-table .c-shared { width: 300px; min-width: 300px; }
+.admin-table .c-by { width: 150px; min-width: 150px; }
+.admin-table td.ph-td { min-width: 120px; }
+
+.added { font-size: 13px; color: var(--muted); padding-top: 13px !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ph-cell { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+.ph-mini {
+  width: 42px; height: 42px; border-radius: 8px; flex: none; overflow: hidden; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 800; font-size: 14px;
+}
+.ph-mini img { width: 100%; height: 100%; object-fit: cover; }
+.ph-actions { display: grid; gap: 2px; justify-items: start; }
+.link-btn { position: relative; background: none; border: 0; padding: 0; font-size: 12px; color: var(--muted); text-decoration: underline; cursor: pointer; overflow: hidden; }
+.link-btn:hover { color: var(--fg); }
+.link-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.row-status { font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 14px !important; min-width: 84px; }
+.row-status.ok { color: var(--ok); }
+.row-status.err { color: var(--danger); white-space: normal; max-width: 160px; }
+.del-cell { white-space: nowrap; padding-top: 8px !important; padding-right: max(16px, env(safe-area-inset-right, 0px)) !important; }
+.del-btn { border: 1px solid var(--danger); color: var(--danger); background: none; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.del-confirm { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.del-confirm button { border-radius: 999px; padding: 5px 11px; font-size: 13px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.del-confirm .yes { background: var(--danger); border-color: var(--danger); color: #fff; }

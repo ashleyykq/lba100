@@ -1,0 +1,38 @@
+/* Password lock screen. */
+.lock {
+  position: fixed; inset: 0; z-index: 60; background: var(--bg);
+  display: grid; place-items: center; overflow-y: auto;
+  padding: calc(24px + var(--tg-content-safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+}
+.lock.leaving { animation: lockOut .55s cubic-bezier(.6,0,.3,1) forwards; pointer-events: none; }
+@keyframes lockOut { to { transform: translateY(-100%); } }
+.lock-box { width: min(100%, 360px); display: grid; gap: 14px; }
+.lock-box.shake { animation: shake .45s cubic-bezier(.36,.07,.19,.97); }
+@keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+.padlock { width: 76px; height: 92px; margin-bottom: 6px; }
+.padlock .shackle { fill: none; stroke: var(--tile); stroke-width: 9; stroke-linecap: round; transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.padlock .body { fill: var(--accent); }
+.padlock .hole { fill: var(--accent-ink); }
+.lock.open .padlock .shackle { transform: translateY(-12px); }
+.lock-box.shake .padlock { animation: rattle .45s ease; }
+@keyframes rattle { 25% { transform: rotate(-10deg); } 75% { transform: rotate(8deg); } }
+.lock h1 { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1.05; letter-spacing: -.02em; margin: 2px 0 0; text-wrap: balance; }
+.lock-intro { margin: 0; color: var(--muted); font-size: 15px; }
+.pw-row { position: relative; }
+.pw-row input { width: 100%; padding-right: 64px; }
+input[type="password"] {
+  width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 12px; padding: 13px 14px;
+}
+.pw-row input[type="text"] { background: var(--surface); border: 1.5px solid var(--line); padding: 13px 64px 13px 14px; }
+.pw-row input:focus { outline: none; border-color: var(--accent); }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: 0; background: none; padding: 8px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.lock-msg {
+  margin: 0; font-size: 15px; line-height: 1.4; color: var(--fg);
+  background: var(--accent-soft); border-radius: 12px; padding: 10px 14px;
+  animation: up .3s cubic-bezier(.2,.9,.3,1.2);
+}
+.lock-msg small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }

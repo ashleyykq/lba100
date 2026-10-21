@@ -1,0 +1,78 @@
+/* Screen 1: the word "LBA" built from 100 tiles. */
+.landing {
+  min-height: calc(var(--tg-viewport-stable-height, 100svh) - 24px);
+  display: flex; flex-direction: column; justify-content: center; gap: clamp(20px, 4vh, 36px);
+  padding-block: 28px 56px;
+  max-width: 820px; margin: 0 auto; position: relative;
+}
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding-right: 48px; }
+.count { display: flex; align-items: baseline; gap: 10px; }
+.count-num {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(56px, 13vw, 104px); line-height: .85;
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: var(--accent);
+}
+.count-of { font-family: var(--font-display); font-weight: 700; font-size: clamp(18px, 4vw, 26px); line-height: 1.1; }
+.count-sub { display: block; font-family: var(--font-body); font-weight: 500; font-size: 14px; color: var(--muted); }
+.left { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.mosaic {
+  --gap: clamp(2px, .7vw, 6px);
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), auto);
+  width: 100%;
+}
+.tile {
+  position: relative; aspect-ratio: 1; width: 100%; max-width: 100%;
+  border: 0; padding: 0; cursor: pointer; overflow: hidden;
+  border-radius: clamp(2px, .5vw, 5px);
+  background: var(--tile);
+  animation: tileIn .6s cubic-bezier(.2,.9,.3,1.2) backwards;
+  animation-delay: calc(var(--c) * 22ms + var(--r) * 14ms);
+  transition: transform .2s cubic-bezier(.3,1.5,.5,1), background-color .3s;
+}
+.tile::after { /* ambient glint sweeping across the word */
+  content: ""; position: absolute; inset: 0; background: var(--tile-glint); opacity: 0; pointer-events: none;
+  animation: glint 7s ease-in-out infinite; animation-delay: calc(1.2s + var(--c) * 70ms);
+}
+.tile.on { background: var(--accent); }
+.tile.on::after { display: none; }
+.tile img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: grayscale(1) contrast(1.15) brightness(1.05); mix-blend-mode: multiply; opacity: .9;
+}
+@media (hover: hover) { .tile:hover { transform: translateY(-2px) scale(1.12); z-index: 2; } }
+.tile:active { transform: scale(.92); }
+.tile.pop { animation: pop .8s cubic-bezier(.3,1.6,.5,1) backwards; z-index: 3; }
+.tile.pop::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 1;
+  animation: ring .9s ease-out forwards;
+}
+@keyframes tileIn { from { transform: scale(.35); opacity: .25; } to { transform: none; opacity: 1; } }
+@keyframes glint { 0%, 88%, 100% { opacity: 0; } 92% { opacity: 1; } }
+@keyframes pop {
+  0% { transform: scale(.2) rotate(-25deg); background: var(--tile); }
+  55% { transform: scale(1.45) rotate(8deg); }
+  100% { transform: none; }
+}
+@keyframes ring { from { box-shadow: 0 0 0 0 var(--accent); } to { box-shadow: 0 0 0 16px transparent; } }
+
+.caption { color: var(--muted); font-size: 15px; max-width: 46ch; }
+.note {
+  font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px;
+}
+.demo {
+  font-size: 14px; color: var(--fg); background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin: 0;
+}
+.demo b { font-weight: 600; }
+
+.cue {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; color: var(--fg); text-decoration: none;
+  padding: 8px 14px 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+}
+.cue svg { width: 14px; height: 14px; animation: nudge 1.8s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
+
+/* Confetti bits from a newly lit tile */
+.bit { position: fixed; z-index: 35; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); pointer-events: none; }

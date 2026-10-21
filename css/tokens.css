@@ -1,0 +1,38 @@
+/* Colour + type tokens. Dark values are repeated: the media query covers first paint,
+   [data-theme] covers the viewer's own choice (set by js/theme.js). */
+:root {
+  --bg: #ECEEF1;
+  --surface: #FFFFFF;
+  --fg: #16181C;
+  --muted: #5B626C;
+  --line: #D3D8DF;
+  --tile: #444A52;
+  --tile-glint: rgba(255,255,255,.45);
+  --accent: #FF6716;
+  --accent-soft: #FFE3D2;
+  --accent-ink: #1C0D03;
+  --sticker-edge: #FFFFFF;
+  --shadow: rgba(20,22,26,.16);
+  --scrim: rgba(16,18,22,.45);
+  --danger: #C62F1E;
+  --ok: #1D7A4A;
+  --font-display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101215; --surface: #1A1D22; --fg: #EEF0F3; --muted: #9CA3AE; --line: #2B3038;
+    --tile: #3B4048; --tile-glint: rgba(255,255,255,.22); --accent: #FF7A2E; --accent-soft: #3A2214;
+    --accent-ink: #1C0D03; --sticker-edge: #F3F4F6; --shadow: rgba(0,0,0,.55); --scrim: rgba(0,0,0,.6); --danger: #FF6B5A;
+    --ok: #5FD394;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101215; --surface: #1A1D22; --fg: #EEF0F3; --muted: #9CA3AE; --line: #2B3038;
+  --tile: #3B4048; --tile-glint: rgba(255,255,255,.22); --accent: #FF7A2E; --accent-soft: #3A2214;
+  --accent-ink: #1C0D03; --sticker-edge: #F3F4F6; --shadow: rgba(0,0,0,.55); --scrim: rgba(0,0,0,.6); --danger: #FF6B5A;
+  --ok: #5FD394;
+  color-scheme: dark;
+}
