@@ -1,0 +1,1638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LBA 100</title>
+<!-- Telegram Mini App bridge: gives us the user's name, theme, haptics and back button -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Supabase client: shared storage + live updates -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  /* ===================== YOUR SETTINGS ===================== */
+  /* Paste these from Supabase → Project Settings → API Keys. */
+  window.LBA_CONFIG = {
+    SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
+    SUPABASE_KEY: "YOUR-PUBLISHABLE-OR-ANON-KEY",
+    GOAL: 100,
+  };
+  /* ========================================================= */
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=DM+Mono:wght@400;500&family=Caveat:wght@600&display=swap">
+<style>
+/* Layout: screen 1 = the word built from 100 tiles; screen 2 = an endless swipe deck of everyone; a sticker floats bottom-right to add one more. */
+:root {
+  --bg: #ECEEF1;
+  --surface: #FFFFFF;
+  --fg: #16181C;
+  --muted: #5B626C;
+  --line: #D3D8DF;
+  --tile: #444A52;
+  --tile-glint: rgba(255,255,255,.45);
+  --accent: #FF6716;
+  --accent-soft: #FFE3D2;
+  --accent-ink: #1C0D03;
+  --sticker-edge: #FFFFFF;
+  --shadow: rgba(20,22,26,.16);
+  --scrim: rgba(16,18,22,.45);
+  --danger: #C62F1E;
+  --font-display: "Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101215; --surface: #1A1D22; --fg: #EEF0F3; --muted: #9CA3AE; --line: #2B3038;
+    --tile: #3B4048; --tile-glint: rgba(255,255,255,.22); --accent: #FF7A2E; --accent-soft: #3A2214;
+    --accent-ink: #1C0D03; --sticker-edge: #F3F4F6; --shadow: rgba(0,0,0,.55); --scrim: rgba(0,0,0,.6); --danger: #FF6B5A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101215; --surface: #1A1D22; --fg: #EEF0F3; --muted: #9CA3AE; --line: #2B3038;
+  --tile: #3B4048; --tile-glint: rgba(255,255,255,.22); --accent: #FF7A2E; --accent-soft: #3A2214;
+  --accent-ink: #1C0D03; --sticker-edge: #F3F4F6; --shadow: rgba(0,0,0,.55); --scrim: rgba(0,0,0,.6); --danger: #FF6B5A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: hidden;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.eyebrow {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+
+/* ---------- Screen 1: the word ---------- */
+.landing {
+  min-height: calc(100svh - 24px);
+  display: flex; flex-direction: column; justify-content: center; gap: clamp(20px, 4vh, 36px);
+  padding-block: 28px 56px;
+  max-width: 820px; margin: 0 auto; position: relative;
+}
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.count { display: flex; align-items: baseline; gap: 10px; }
+.count-num {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(56px, 13vw, 104px); line-height: .85;
+  font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: var(--accent);
+}
+.count-of { font-family: var(--font-display); font-weight: 700; font-size: clamp(18px, 4vw, 26px); line-height: 1.1; }
+.count-of span { display: block; font-family: var(--font-body); font-weight: 500; font-size: 14px; color: var(--muted); }
+.left { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.mosaic {
+  --gap: clamp(2px, .7vw, 6px);
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(var(--cols), 1fr);
+  grid-template-rows: repeat(var(--rows), auto);
+  width: 100%;
+}
+.tile {
+  position: relative; aspect-ratio: 1; width: 100%; max-width: 100%;
+  border: 0; padding: 0; cursor: pointer; overflow: hidden;
+  border-radius: clamp(2px, .5vw, 5px);
+  background: var(--tile);
+  animation: tileIn .6s cubic-bezier(.2,.9,.3,1.2) backwards;
+  animation-delay: calc(var(--c) * 22ms + var(--r) * 14ms);
+  transition: transform .2s cubic-bezier(.3,1.5,.5,1), background-color .3s;
+}
+.tile::after { /* ambient glint sweeping across the word */
+  content: ""; position: absolute; inset: 0; background: var(--tile-glint); opacity: 0; pointer-events: none;
+  animation: glint 7s ease-in-out infinite; animation-delay: calc(1.2s + var(--c) * 70ms);
+}
+.tile.on { background: var(--accent); }
+.tile.on::after { display: none; }
+.tile img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: grayscale(1) contrast(1.15) brightness(1.05); mix-blend-mode: multiply; opacity: .9;
+}
+@media (hover: hover) { .tile:hover { transform: translateY(-2px) scale(1.12); z-index: 2; } }
+.tile:active { transform: scale(.92); }
+.tile.pop { animation: pop .8s cubic-bezier(.3,1.6,.5,1) backwards; z-index: 3; }
+.tile.pop::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: 1;
+  animation: ring .9s ease-out forwards;
+}
+@keyframes tileIn { from { transform: scale(.35); opacity: .25; } to { transform: none; opacity: 1; } }
+@keyframes glint { 0%, 88%, 100% { opacity: 0; } 92% { opacity: 1; } }
+@keyframes pop {
+  0% { transform: scale(.2) rotate(-25deg); background: var(--tile); }
+  55% { transform: scale(1.45) rotate(8deg); }
+  100% { transform: none; }
+}
+@keyframes ring { from { box-shadow: 0 0 0 0 var(--accent); } to { box-shadow: 0 0 0 16px transparent; } }
+
+.caption { color: var(--muted); font-size: 15px; max-width: 46ch; }
+.note {
+  font-size: 14px; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px;
+}
+
+.cue {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; color: var(--fg); text-decoration: none;
+  padding: 8px 14px 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+}
+.cue svg { width: 14px; height: 14px; animation: nudge 1.8s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(-1px); } 50% { transform: translateY(3px); } }
+
+/* ---------- Screen 2: newest added ---------- */
+.newest {
+  max-width: 820px; margin: 0 auto; padding-block: 48px 160px;
+  display: grid; gap: 24px; justify-items: center;
+}
+.newest-head { justify-self: stretch; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.newest h2 {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(32px, 8vw, 52px);
+  line-height: 1; letter-spacing: -.02em; margin: 6px 0 0; text-wrap: balance;
+}
+.newest-head p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+
+.deck {
+  display: grid; width: min(100%, 380px); touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  padding-bottom: 20px; /* room for stacked cards peeking below */
+}
+.card {
+  grid-area: 1 / 1; background: var(--surface); border-radius: 22px; overflow: hidden;
+  box-shadow: 0 1px 0 var(--line), 0 14px 34px -14px var(--shadow);
+  display: grid; grid-template-rows: auto 1fr; min-width: 0;
+  transform-origin: 50% 100%; will-change: transform;
+}
+.card.top { z-index: 3; cursor: grab; animation: rise .35s cubic-bezier(.2,.9,.3,1.1); }
+.card.top:active { cursor: grabbing; }
+.card.second { z-index: 2; transform: translateY(12px) scale(.94); filter: brightness(.97); pointer-events: none; }
+.card.third { z-index: 1; transform: translateY(24px) scale(.88); filter: brightness(.94); pointer-events: none; }
+@keyframes rise { from { transform: translateY(12px) scale(.94); } to { transform: none; } }
+
+.photo { position: relative; aspect-ratio: 1; max-width: 100%; background: var(--tile); overflow: hidden; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.photo img.blur { filter: blur(14px); transform: scale(1.12); }
+.initials {
+  position: absolute; inset: 0; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink);
+  font-family: var(--font-display); font-weight: 800; font-size: 96px; letter-spacing: -.04em;
+}
+.badge {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .04em;
+  background: var(--surface); color: var(--fg); border-radius: 999px; padding: 5px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.badge.new { left: auto; right: 12px; background: var(--accent); color: var(--accent-ink); animation: blink 1.6s ease-in-out infinite; }
+@keyframes blink { 50% { transform: scale(1.06); } }
+
+.meta { padding: 16px 18px 18px; display: grid; gap: 8px; align-content: start; min-height: 168px; min-width: 0; }
+.meta-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.name { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.05; margin: 0; overflow-wrap: anywhere; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--fg); overflow-wrap: anywhere;
+}
+.chip.date { background: transparent; border: 1px solid var(--line); font-family: var(--font-mono); font-weight: 400; font-variant-numeric: tabular-nums; }
+.shared {
+  margin: 2px 0 0; font-size: 15px; color: var(--fg); line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.shared::before { content: "\201C"; font-family: var(--font-display); font-weight: 800; color: var(--accent); margin-right: 2px; }
+.shared::after { content: "\201D"; font-family: var(--font-display); font-weight: 800; color: var(--accent); margin-left: 1px; }
+.shared.none { color: var(--muted); }
+.shared.none::before, .shared.none::after { content: none; }
+
+.remove { justify-self: start; background: none; border: 0; padding: 4px 0; font-size: 13px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.confirm button { border-radius: 999px; padding: 4px 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.confirm .yes { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.empty { grid-area: 1/1; padding: 40px 24px; text-align: center; border: 1.5px dashed var(--line); border-radius: 22px; color: var(--muted); }
+.empty strong { display: block; font-family: var(--font-display); font-size: 22px; color: var(--fg); margin-bottom: 6px; }
+
+.deck-nav { display: flex; align-items: center; gap: 14px; }
+.nav-btn {
+  width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface);
+  display: grid; place-items: center; cursor: pointer; transition: transform .15s;
+}
+.nav-btn:active { transform: scale(.9); }
+.nav-btn svg { width: 18px; height: 18px; }
+.nav-btn:disabled { opacity: .4; cursor: default; }
+.pos { font-family: var(--font-mono); font-size: 14px; min-width: 76px; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); }
+.swipe-hint { font-size: 13px; color: var(--muted); margin-top: -10px; }
+
+/* ---------- Floating sticker ---------- */
+.sticker {
+  position: fixed; z-index: 30;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  width: 112px; height: 112px; border: 0; padding: 0; background: none; cursor: pointer;
+  transform: rotate(-9deg); filter: drop-shadow(0 8px 14px var(--shadow));
+  transition: transform .25s cubic-bezier(.3,1.6,.5,1);
+  -webkit-tap-highlight-color: transparent;
+}
+.sticker .wob { position: absolute; inset: 0; display: block; animation: wobble 5s ease-in-out 2s infinite; }
+.sticker svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sticker .edge { fill: var(--sticker-edge); }
+.sticker .face { fill: var(--accent); }
+.sticker text { fill: var(--accent-ink); font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .5px; }
+.sticker .spin { transform-box: view-box; transform-origin: 50% 50%; animation: spin 16s linear infinite; }
+.sticker .core {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: var(--accent-ink); pointer-events: none;
+}
+.sticker .core b { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: .9; letter-spacing: -.03em; }
+.sticker .core small { font-family: var(--font-display); font-weight: 700; font-size: 14px; line-height: 1; }
+@media (hover: hover) { .sticker:hover { transform: rotate(4deg) scale(1.07); } }
+.sticker:active { transform: rotate(0) scale(.9); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes wobble { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(7deg) scale(1.07); } 94% { transform: rotate(-5deg); } }
+
+/* ---------- Modal ---------- */
+.scrim {
+  position: fixed; inset: 0; z-index: 40; background: var(--scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fade .2s ease;
+}
+.sheet {
+  background: var(--surface); width: min(100%, 520px); max-height: calc(100svh - 24px); overflow-y: auto;
+  border-radius: 24px 24px 0 0;
+  padding: 22px max(20px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  animation: up .38s cubic-bezier(.2,.9,.3,1.05);
+  box-shadow: 0 -10px 40px -10px var(--shadow);
+}
+@media (min-width: 640px) { .scrim { align-items: center; } .sheet { border-radius: 24px; } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes up { from { transform: translateY(40px); opacity: .4; } }
+.sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.sheet h3 { font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1.05; margin: 4px 0 0; }
+.close { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); cursor: pointer; display: grid; place-items: center; flex: none; }
+.close svg { width: 14px; height: 14px; }
+form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label, .field .lbl { font-size: 14px; font-weight: 600; }
+.field .opt { font-weight: 400; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
+input[type="text"], input[type="date"], textarea {
+  width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
+  border: 1.5px solid transparent; border-radius: 12px; padding: 11px 13px;
+  transition: border-color .15s, background-color .15s;
+}
+input:focus, textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+textarea { resize: vertical; min-height: 84px; }
+.photo-pick {
+  position: relative; display: flex; align-items: center; gap: 14px; padding: 10px; cursor: pointer;
+  border: 1.5px dashed var(--line); border-radius: 14px; transition: border-color .15s;
+}
+.photo-pick:hover, .photo-pick:focus-within { border-color: var(--accent); }
+.photo-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.thumb {
+  width: 64px; height: 64px; border-radius: 10px; flex: none; background: var(--tile); overflow: hidden; display: grid; place-items: center;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb svg { width: 24px; height: 24px; color: var(--surface); }
+.pick-text { font-size: 14px; color: var(--muted); }
+.pick-text b { display: block; color: var(--fg); font-weight: 600; }
+.err { color: var(--danger); font-size: 14px; margin: 0; }
+.submit {
+  margin-top: 4px; border: 0; border-radius: 14px; padding: 15px 18px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 800; font-size: 18px;
+  transition: transform .15s, opacity .15s;
+}
+.submit:active { transform: scale(.98); }
+.submit:disabled { opacity: .6; cursor: progress; }
+
+/* ---------- Toast + burst ---------- */
+.toast {
+  position: fixed; z-index: 50; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px));
+  transform: translate(-50%, -140%); transition: transform .4s cubic-bezier(.3,1.4,.5,1);
+  background: var(--fg); color: var(--bg); border-radius: 999px; padding: 10px 18px; font-size: 14px; font-weight: 500;
+  max-width: calc(100% - 32px); text-align: center;
+}
+.toast.show { transform: translate(-50%, 0); }
+.bit { position: fixed; z-index: 35; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ---------- Telegram additions ---------- */
+html, body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body {
+  -webkit-tap-highlight-color: transparent;
+  padding-top: var(--tg-content-safe-area-inset-top, 0px);
+}
+.landing { min-height: calc(var(--tg-viewport-stable-height, 100svh) - 24px); }
+.sticker { bottom: calc(18px + max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px))); }
+.demo {
+  font-size: 14px; color: var(--fg); background: var(--accent-soft); border-radius: 12px; padding: 10px 14px; margin: 0;
+}
+.demo b { font-weight: 600; }
+.me-chip, .svc-chip {
+  justify-self: start; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 5px 12px; font-size: 13px; font-weight: 500; cursor: pointer; transition: transform .12s, border-color .15s;
+}
+.me-chip:active, .svc-chip:active { transform: scale(.95); }
+.me-chip { border-color: var(--accent); color: var(--fg); }
+.svc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.svc-chip.on { background: var(--accent-soft); border-color: var(--accent); }
+
+/* ---------- Password lock ---------- */
+.lock {
+  position: fixed; inset: 0; z-index: 60; background: var(--bg);
+  display: grid; place-items: center; overflow-y: auto;
+  padding: calc(24px + var(--tg-content-safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+}
+.lock.leaving { animation: lockOut .55s cubic-bezier(.6,0,.3,1) forwards; pointer-events: none; }
+@keyframes lockOut { to { transform: translateY(-100%); } }
+.lock-box { width: min(100%, 360px); display: grid; gap: 14px; }
+.lock-box.shake { animation: shake .45s cubic-bezier(.36,.07,.19,.97); }
+@keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+.padlock { width: 76px; height: 92px; margin-bottom: 6px; }
+.padlock .shackle { fill: none; stroke: var(--tile); stroke-width: 9; stroke-linecap: round; transition: transform .35s cubic-bezier(.3,1.6,.5,1); }
+.padlock .body { fill: var(--accent); }
+.padlock .hole { fill: var(--accent-ink); }
+.lock.open .padlock .shackle { transform: translateY(-12px); }
+.lock-box.shake .padlock { animation: rattle .45s ease; }
+@keyframes rattle { 25% { transform: rotate(-10deg); } 75% { transform: rotate(8deg); } }
+.lock h1 { font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1.05; letter-spacing: -.02em; margin: 2px 0 0; text-wrap: balance; }
+.lock-intro { margin: 0; color: var(--muted); font-size: 15px; }
+.pw-row { position: relative; }
+.pw-row input { width: 100%; padding-right: 64px; }
+input[type="password"] {
+  width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface);
+  border: 1.5px solid var(--line); border-radius: 12px; padding: 13px 14px;
+}
+.pw-row input[type="text"] { background: var(--surface); border: 1.5px solid var(--line); padding: 13px 64px 13px 14px; }
+.pw-row input:focus { outline: none; border-color: var(--accent); }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: 0; background: none; padding: 8px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.lock-msg {
+  margin: 0; font-size: 15px; line-height: 1.4; color: var(--fg);
+  background: var(--accent-soft); border-radius: 12px; padding: 10px 14px;
+  animation: up .3s cubic-bezier(.2,.9,.3,1.2);
+}
+.lock-msg small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+/* ---------- Theme toggle ---------- */
+.theme-btn {
+  position: fixed; z-index: 70;
+  top: calc(12px + var(--tg-content-safe-area-inset-top, 0px) + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 14px -6px var(--shadow);
+  transition: transform .2s cubic-bezier(.3,1.6,.5,1), background-color .3s;
+}
+.theme-btn:active { transform: scale(.88); }
+body.overlay-open .theme-btn { opacity: 0; pointer-events: none; transform: scale(.6); }
+.theme-btn svg { width: 20px; height: 20px; grid-area: 1 / 1; transition: transform .45s cubic-bezier(.3,1.4,.5,1), opacity .25s; }
+.theme-btn .moon { fill: currentColor; }
+.theme-btn .sun { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.theme-btn .sun circle { fill: var(--accent); }
+.theme-btn[data-mode="light"] .sun { opacity: 0; transform: rotate(-90deg) scale(.4); }
+.theme-btn[data-mode="dark"] .moon { opacity: 0; transform: rotate(90deg) scale(.4); }
+body.theme-fade, body.theme-fade * { transition: background-color .35s ease, color .35s ease, border-color .35s ease !important; }
+.head { padding-right: 48px; }
+
+.badge.new { background: var(--fg); color: var(--bg); }
+
+/* ---------- Sign-off ---------- */
+.signoff {
+  margin: 6px 0 0; padding-top: 10px; border-top: 1px dashed var(--line);
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+  font-size: 13px; color: var(--muted);
+}
+.signoff .sig {
+  font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive; font-weight: 600; font-size: 24px; line-height: 1;
+  color: var(--accent); transform: rotate(-3deg); display: inline-block; overflow-wrap: anywhere;
+}
+
+/* ---------- Admin ---------- */
+:root { --ok: #1D7A4A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #5FD394; } }
+:root[data-theme="dark"] { --ok: #5FD394; }
+
+.newest { padding-block: 48px 24px; }
+.foot { display: flex; justify-content: center; padding-block: 24px 150px; }
+.admin-btn {
+  display: inline-flex; align-items: center; gap: 7px; background: none; cursor: pointer;
+  border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 7px 14px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  transition: color .2s, border-color .2s;
+}
+.admin-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.admin-btn:hover, .admin-btn:focus-visible { color: var(--fg); border-color: var(--muted); }
+
+.admin {
+  position: fixed; inset: 0; z-index: 55; background: var(--bg);
+  display: flex; flex-direction: column; animation: up .3s cubic-bezier(.2,.9,.3,1.05);
+  padding-top: calc(var(--tg-content-safe-area-inset-top, 0px) + env(safe-area-inset-top, 0px));
+}
+.admin-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: center;
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.admin-head h2 { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1.05; margin: 2px 0 0; }
+.admin-count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.admin-tools { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.admin-tools input[type="search"] {
+  flex: 1 1 220px; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
+  border: 1.5px solid transparent; border-radius: 10px; padding: 9px 12px;
+}
+.admin-tools input[type="search"]:focus { outline: none; border-color: var(--accent); }
+.admin-hint { font-size: 13px; color: var(--muted); }
+.admin-close { width: 40px; height: 40px; }
+.admin-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.admin-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1120px; font-size: 14px; }
+.admin-table th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface); text-align: left; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  padding: 10px 8px; border-bottom: 1px solid var(--line);
+}
+.admin-table td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; background: var(--bg); }
+.admin-table th:first-child, .admin-table td:first-child { position: sticky; left: 0; z-index: 1; padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+.admin-table th:first-child { z-index: 3; }
+.admin-table td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); padding-top: 14px; white-space: nowrap; }
+.admin-table tr.removing td { opacity: 0; transition: opacity .3s; }
+.admin-table tr.saved td { animation: flash 1s ease; }
+@keyframes flash { 0% { background: var(--accent-soft); } 100% { background: var(--bg); } }
+.admin-table .cell-input {
+  display: block; font: inherit; font-size: 15px; color: var(--fg); background: transparent;
+  border: 1.5px solid transparent; border-radius: 8px; padding: 7px 8px;
+}
+.admin-table .cell-input:hover { border-color: var(--line); }
+.admin-table .cell-input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.admin-table textarea.cell-input { min-height: 40px; resize: vertical; line-height: 1.4; }
+.admin-table .c-name { width: 180px; min-width: 180px; }
+.admin-table .c-date { width: 160px; min-width: 160px; }
+.admin-table .c-svc { width: 140px; min-width: 140px; }
+.admin-table .c-shared { width: 300px; min-width: 300px; }
+.admin-table .c-by { width: 150px; min-width: 150px; }
+.admin-table td.ph-td { min-width: 120px; }
+.added { font-size: 13px; color: var(--muted); padding-top: 13px !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ph-cell { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+.ph-mini {
+  width: 42px; height: 42px; border-radius: 8px; flex: none; overflow: hidden; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 800; font-size: 14px;
+}
+.ph-mini img { width: 100%; height: 100%; object-fit: cover; }
+.ph-actions { display: grid; gap: 2px; justify-items: start; }
+.link-btn { position: relative; background: none; border: 0; padding: 0; font-size: 12px; color: var(--muted); text-decoration: underline; cursor: pointer; overflow: hidden; }
+.link-btn:hover { color: var(--fg); }
+.link-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.row-status { font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 14px !important; min-width: 84px; }
+.row-status.ok { color: var(--ok); }
+.row-status.err { color: var(--danger); white-space: normal; max-width: 160px; }
+.del-cell { white-space: nowrap; padding-top: 8px !important; padding-right: max(16px, env(safe-area-inset-right, 0px)) !important; }
+.del-btn { border: 1px solid var(--danger); color: var(--danger); background: none; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.del-confirm { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.del-confirm button { border-radius: 999px; padding: 5px 11px; font-size: 13px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.del-confirm .yes { background: var(--danger); border-color: var(--danger); color: #fff; }
+.admin-empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+.admin-demo { margin: 0; font-size: 13px; background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; }
+#adminLogin input[type="password"] { background: var(--bg); border-color: transparent; }
+#adminLogin input[type="password"]:focus { border-color: var(--accent); outline: none; }
+</style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to dark mode" data-mode="light">
+  <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"/></svg>
+  <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+</button>
+
+<div class="lock" id="lock">
+  <form class="lock-box" id="lockForm" novalidate>
+    <svg class="padlock" viewBox="0 0 76 92" aria-hidden="true">
+      <path class="shackle" d="M18 44 V28 a20 20 0 0 1 40 0 V44"/>
+      <rect class="body" x="4" y="40" width="68" height="50" rx="10"/>
+      <circle class="hole" cx="38" cy="60" r="6"/>
+      <rect class="hole" x="35" y="62" width="6" height="14" rx="3"/>
+    </svg>
+    <div class="eyebrow">LBA campaign wall</div>
+    <h1 id="lockTitle">Enter the password</h1>
+    <p class="lock-intro">This wall is for the LBA team. Ask your organiser if you don't have it.</p>
+    <div class="pw-row">
+      <label for="lockPw" class="eyebrow" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Password</label>
+      <input type="password" id="lockPw" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Password" enterkeyhint="go">
+      <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">Show</button>
+    </div>
+    <p class="lock-msg" id="lockMsg" role="alert" hidden></p>
+    <button class="submit" id="unlockBtn" type="submit">Unlock</button>
+  </form>
+</div>
+
+<main>
+  <section class="landing" aria-labelledby="t1">
+    <div class="head">
+      <div>
+        <div class="eyebrow" id="t1">LBA campaign wall</div>
+        <div class="count" aria-live="polite">
+          <span class="count-num" id="countNum">0</span>
+          <span class="count-of">of <span id="goalNum" style="display:inline;font:inherit;color:inherit">100</span><span>have joined</span></span>
+        </div>
+      </div>
+      <div class="left" id="leftText">Loading the wall…</div>
+    </div>
+
+    <div class="mosaic" id="mosaic" role="group" aria-label="The word LBA made of 100 tiles"></div>
+
+    <p class="caption">Every tile is one person. Orange tiles have joined. Tap one to see who it is, or tap a grey tile to add someone.</p>
+    <p class="demo" id="demo" hidden><b>Demo mode.</b> Entries disappear when you close this. Add your Supabase settings at the top of index.html to save them for everyone.</p>
+    <p class="note" id="offline" hidden>Couldn't reach the wall. Check your connection, then close and reopen.</p>
+
+    <a class="cue" href="#newest" id="cue">
+      Newest added
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v11M3 8l5 5 5-5"/></svg>
+    </a>
+  </section>
+
+  <section class="newest" id="newest" aria-labelledby="t2">
+    <div class="newest-head">
+      <div>
+        <div class="eyebrow">Newest first</div>
+        <h2 id="t2">Newest added</h2>
+        <p>Swipe through everyone on the wall. It loops back to the start.</p>
+      </div>
+    </div>
+
+    <div class="deck" id="deck" tabindex="0" aria-roledescription="carousel" aria-label="People who joined"></div>
+    <p class="swipe-hint" id="hint" hidden>Swipe left or right</p>
+
+    <div class="deck-nav">
+      <button class="nav-btn" id="prevBtn" aria-label="Newer person">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+      </button>
+      <span class="pos" id="pos">0 / 0</span>
+      <button class="nav-btn" id="nextBtn" aria-label="Older person">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <button class="admin-btn" id="adminBtn" type="button">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="8" r="3"/><path d="M8 8h6.5M12 8v2.5M14.5 8v2"/></svg>
+      Admin
+    </button>
+  </footer>
+</main>
+
+<button class="sticker" id="addBtn" aria-label="Thank you. Add one more person">
+  <span class="wob">
+  <svg viewBox="0 0 120 120" aria-hidden="true">
+    <defs><path id="ringPath" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>
+    <circle class="edge" cx="60" cy="60" r="59"/>
+    <circle class="face" cx="60" cy="60" r="54"/>
+    <g class="spin"><text><textPath href="#ringPath" textLength="280" lengthAdjust="spacing">THANK YOU ✦ THANK YOU ✦ THANK YOU ✦</textPath></text></g>
+  </svg>
+  <span class="core"><b>+1</b><small>more</small></span>
+  </span>
+</button>
+
+<div class="scrim" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="sheet-head">
+      <div>
+        <div class="eyebrow" id="mSpot">Tile 1 of 100</div>
+        <h3 id="mTitle">Add one more</h3>
+      </div>
+      <button class="close" id="closeBtn" aria-label="Close">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+      </button>
+    </div>
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="fName">Name</label>
+        <input type="text" id="fName" autocomplete="name" maxlength="60" placeholder="e.g. Tan Mei Ling" required>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="fDate">Date</label>
+          <input type="date" id="fDate" required>
+        </div>
+        <div class="field">
+          <label for="fSvc">Which service</label>
+          <input type="text" id="fSvc" maxlength="40" placeholder="e.g. Youth svc" required>
+        </div>
+      </div>
+      <div class="svc-chips" id="svcChips" hidden></div>
+      <div class="field">
+        <label for="fShared">What they shared <span class="opt">(optional)</span></label>
+        <textarea id="fShared" maxlength="400" placeholder="A line or two from their sharing"></textarea>
+      </div>
+      <div class="field">
+        <span class="lbl">Photo <span class="opt">(optional)</span></span>
+        <label class="photo-pick" for="fPhoto">
+          <span class="thumb" id="thumb"></span>
+          <span class="pick-text"><b id="pickTitle">Add a photo</b><span id="pickSub">Take one or choose from your phone</span></span>
+          <input type="file" id="fPhoto" accept="image/*">
+        </label>
+      </div>
+      <p class="err" id="formErr" role="alert" hidden></p>
+      <button class="submit" id="submitBtn" type="submit">Add to the wall</button>
+    </form>
+  </div>
+</div>
+
+<div class="scrim" id="adminLogin" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="alTitle">
+    <div class="sheet-head">
+      <div>
+        <div class="eyebrow">Organisers only</div>
+        <h3 id="alTitle">Admin</h3>
+      </div>
+      <button class="close" id="alClose" type="button" aria-label="Close">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+      </button>
+    </div>
+    <form id="alForm" novalidate>
+      <div class="field">
+        <label for="alPw">Admin password</label>
+        <input type="password" id="alPw" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      </div>
+      <p class="admin-demo" id="alDemo" hidden>Demo mode: any password opens the admin table.</p>
+      <p class="err" id="alErr" role="alert" hidden></p>
+      <button class="submit" id="alBtn" type="submit">Open admin table</button>
+    </form>
+  </div>
+</div>
+
+<div class="admin" id="adminPanel" hidden role="dialog" aria-modal="true" aria-labelledby="apTitle">
+  <div class="admin-head">
+    <div>
+      <div class="admin-count" id="apCount">0 people</div>
+      <h2 id="apTitle">Everyone on the wall</h2>
+    </div>
+    <button class="close admin-close" id="apClose" type="button" aria-label="Close admin table">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12"/></svg>
+    </button>
+    <div class="admin-tools">
+      <input type="search" id="apSearch" placeholder="Search name, service, sharing…" aria-label="Search">
+      <span class="admin-hint">Changes save when you leave a box.</span>
+    </div>
+  </div>
+  <div class="admin-scroll">
+    <table class="admin-table">
+      <thead>
+        <tr><th>No.</th><th>Photo</th><th>Name</th><th>Date</th><th>Service</th><th>What they shared</th><th>Added by</th><th>Added on</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody id="apBody"></tbody>
+    </table>
+    <div class="admin-empty" id="apEmpty" hidden>No one matches.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const CFG = window.LBA_CONFIG || {};
+  const GOAL = Math.max(1, Number(CFG.GOAL) || 100);
+  const $ = (id) => document.getElementById(id);
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const CAMERA_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>';
+  $("thumb").innerHTML = CAMERA_SVG;
+  $("goalNum").textContent = GOAL;
+
+  /* ---------- Telegram ---------- */
+  const tg = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined ? window.Telegram.WebApp : null;
+  const inTelegram = !!(tg && tg.initData);
+  const haptic = {
+    tap() { try { tg && tg.HapticFeedback.impactOccurred("light"); } catch (_) {} },
+    tick() { try { tg && tg.HapticFeedback.selectionChanged(); } catch (_) {} },
+    ok() { try { tg && tg.HapticFeedback.notificationOccurred("success"); } catch (_) {} },
+    bad() { try { tg && tg.HapticFeedback.notificationOccurred("error"); } catch (_) {} },
+  };
+  // Theme: the viewer's own choice wins; otherwise follow Telegram, otherwise the phone's setting.
+  const THEME_KEY = "lba100-theme";
+  const darkMQ = matchMedia("(prefers-color-scheme: dark)");
+  function savedTheme() { try { const t = localStorage.getItem(THEME_KEY); return t === "dark" || t === "light" ? t : null; } catch (_) { return null; } }
+  function currentTheme() {
+    return savedTheme() || (inTelegram ? (tg.colorScheme === "dark" ? "dark" : "light") : (darkMQ.matches ? "dark" : "light"));
+  }
+  function applyTheme() {
+    const mode = currentTheme();
+    document.documentElement.setAttribute("data-theme", mode);
+    const btn = document.getElementById("themeBtn");
+    if (btn) {
+      btn.dataset.mode = mode;
+      btn.setAttribute("aria-label", mode === "dark" ? "Switch to light mode" : "Switch to dark mode");
+    }
+    if (inTelegram) {
+      const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+      try { tg.setHeaderColor(bg); tg.setBackgroundColor(bg); } catch (_) {}
+      try { tg.setBottomBarColor && tg.setBottomBarColor(bg); } catch (_) {}
+    }
+  }
+  applyTheme();
+  try { darkMQ.addEventListener("change", applyTheme); } catch (_) {}
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+    if (!reduceMotion) { document.body.classList.add("theme-fade"); setTimeout(() => document.body.classList.remove("theme-fade"), 400); }
+    applyTheme();
+    haptic.tap();
+  });
+  if (inTelegram) {
+    try { tg.ready(); tg.expand(); } catch (_) {}
+    try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (_) {}
+    try { tg.onEvent("themeChanged", applyTheme); } catch (_) {}
+  }
+  const tgUser = inTelegram && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+  const tgName = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ").slice(0, 60) : "";
+
+  /* ---------- Build the word from exactly 100 tiles ---------- */
+  const GLYPHS = {
+    L: ["XX...","XX...","XX...","XX...","XX...","XX...","XX...","XXXXX","XXXXX"],
+    B: ["XXXXX..","XX..XX.","XX...XX","XX..XX.","XXXX...","XX..XX.","XX...XX","XX..XX.","XXXXX.."],
+    A: ["..XXX..",".XX.XX.","XX...XX","XX...XX","XXXXXXX","XX...XX","XX...XX","XX...XX","XX...XX"],
+  };
+  const SPACE = 2, ROWS = 9;
+  const cells = [];
+  let x = 0;
+  for (const ch of "LBA") {
+    const g = GLYPHS[ch];
+    g.forEach((row, r) => [...row].forEach((v, c) => { if (v === "X") cells.push({ r, c: x + c }); }));
+    x += g[0].length + SPACE;
+  }
+  const COLS = x - SPACE;
+  const mosaic = $("mosaic");
+  mosaic.style.setProperty("--cols", COLS);
+  mosaic.style.setProperty("--rows", ROWS);
+
+  // Fill order: reading order across the whole word. First person = top-left tile, row by row, last = bottom-right.
+  const fillOrder = cells.map((_, i) => i).sort((a, b) => cells[a].r - cells[b].r || cells[a].c - cells[b].c);
+
+  const tiles = cells.map(({ r, c }) => {
+    const b = document.createElement("button");
+    b.className = "tile";
+    b.style.gridRow = r + 1; b.style.gridColumn = c + 1;
+    b.style.setProperty("--r", r); b.style.setProperty("--c", c);
+    b.setAttribute("aria-label", "Open spot");
+    mosaic.appendChild(b);
+    return b;
+  });
+  // With 100 tiles, person k lights tile k. With a different goal, people spread across the word.
+  const TILE_COUNT = tiles.length;
+  const tileForRank = (k) => (k < GOAL ? tiles[fillOrder[Math.floor(k * TILE_COUNT / GOAL)]] : null);
+
+  /* ---------- Data layer: Supabase, or in-memory demo ---------- */
+  const configured = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(CFG.SUPABASE_URL || "") && CFG.SUPABASE_KEY && !/YOUR-/.test(CFG.SUPABASE_KEY);
+  const sb = configured && window.supabase ? window.supabase.createClient(CFG.SUPABASE_URL.replace(/\/$/, ""), CFG.SUPABASE_KEY) : null;
+  const demo = !sb;
+  const demoRows = [];
+
+  let records = [];          // oldest first
+  let known = null;          // ids seen so far
+  let currentId = null;      // card on top of the deck
+  let ownPending = null;     // id this viewer just added
+  let adminOpen = false;     // admin table showing
+  let hasAddedBy = true;     // false if the database doesn't have the sign-off column yet
+
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
+  const safeThumb = (s) => typeof s === "string" && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s) ? s : null;
+  const str = (v, n) => (typeof v === "string" ? v.slice(0, n) : "");
+  function photoUrl(path) {
+    if (!path || !/^[0-9a-f-]{36}\.jpg$/.test(path)) return null;
+    if (demo) return (demoRows.find((r) => r.photo_path === path) || {})._blobUrl || null;
+    return sb.storage.from("photos").getPublicUrl(path).data.publicUrl;
+  }
+  function clean(d) {
+    return {
+      id: String(d.id),
+      name: str(d.name, 60) || "Someone",
+      date: str(d.date, 10),
+      svc: str(d.svc, 40),
+      shared: str(d.shared, 400),
+      thumb: safeThumb(d.thumb),
+      photo: photoUrl(d.photo_path),
+      createdAt: Date.parse(d.created_at) || 0,
+      addedBy: str(d.added_by, 60).trim(),
+      photoPath: typeof d.photo_path === "string" ? d.photo_path : null,
+    };
+  }
+  const rankOf = (id) => records.findIndex((r) => r.id === id);
+  const initials = (n) => n.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase() || "?";
+  function fmtDate(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+  function todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  /* ---------- Counter ---------- */
+  let shown = 0, countRaf = 0;
+  function setCount(n) {
+    cancelAnimationFrame(countRaf);
+    const from = shown, start = performance.now(), dur = reduceMotion ? 0 : 700;
+    const step = (t) => {
+      const p = dur ? Math.min(1, (t - start) / dur) : 1;
+      shown = Math.round(from + (n - from) * (1 - Math.pow(1 - p, 3)));
+      $("countNum").textContent = shown;
+      if (p < 1) countRaf = requestAnimationFrame(step);
+    };
+    countRaf = requestAnimationFrame(step);
+    const left = GOAL - n;
+    $("leftText").textContent = left > 0 ? `${left} ${left === 1 ? "spot" : "spots"} to go` : `Goal reached · ${n} joined`;
+  }
+
+  /* ---------- Mosaic ---------- */
+  function renderMosaic() {
+    const lit = new Map();
+    for (let k = 0; k < Math.min(GOAL, records.length); k++) lit.set(tileForRank(k), records[k]);
+    for (const t of tiles) {
+      const rec = lit.get(t);
+      const img = t.querySelector("img");
+      if (rec) {
+        const k = rankOf(rec.id);
+        t.classList.add("on");
+        t.dataset.id = rec.id;
+        t.setAttribute("aria-label", `No. ${k + 1}, ${rec.name}`);
+        t.title = rec.name;
+        if (rec.thumb) {
+          if (!img) { const i = document.createElement("img"); i.alt = ""; i.src = rec.thumb; t.appendChild(i); }
+          else if (img.getAttribute("src") !== rec.thumb) img.src = rec.thumb;
+        } else if (img) img.remove();
+      } else {
+        t.classList.remove("on");
+        delete t.dataset.id;
+        t.setAttribute("aria-label", "Open spot");
+        t.removeAttribute("title");
+        if (img) img.remove();
+      }
+    }
+  }
+  mosaic.addEventListener("click", (e) => {
+    const t = e.target.closest(".tile");
+    if (!t) return;
+    haptic.tap();
+    if (t.dataset.id) { showInDeck(t.dataset.id); $("newest").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); }
+    else openModal();
+  });
+  $("cue").addEventListener("click", (e) => { e.preventDefault(); $("newest").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" }); });
+
+  function burst(el) {
+    if (reduceMotion || !el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (let i = 0; i < 14; i++) {
+      const b = document.createElement("span");
+      b.className = "bit";
+      b.style.left = cx - 4 + "px"; b.style.top = cy - 4 + "px";
+      document.body.appendChild(b);
+      const a = (Math.PI * 2 * i) / 14 + Math.random() * .4, d = 40 + Math.random() * 50;
+      b.animate([
+        { transform: "translate(0,0) rotate(0) scale(1)", opacity: 1 },
+        { transform: `translate(${Math.cos(a) * d}px, ${Math.sin(a) * d}px) rotate(${Math.random() * 360}deg) scale(.4)`, opacity: 0 },
+      ], { duration: 700 + Math.random() * 300, easing: "cubic-bezier(.1,.7,.3,1)" }).onfinish = () => b.remove();
+    }
+  }
+  function celebrate(id, delay = 0) {
+    setTimeout(() => {
+      const t = tileForRank(rankOf(id));
+      if (!t) return;
+      t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
+      setTimeout(() => burst(t), 260);
+      setTimeout(() => t.classList.remove("pop"), 1000);
+    }, delay);
+  }
+
+  /* ---------- Toast ---------- */
+  let toastT;
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg; el.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+
+  /* ---------- Deck ---------- */
+  const deck = $("deck");
+  const newestFirst = () => records.slice().reverse();
+  let pos = 0;
+
+  function cardEl(rec, layer) {
+    const k = rankOf(rec.id);
+    const card = document.createElement("article");
+    card.className = "card " + layer;
+    card.dataset.id = rec.id;
+
+    const ph = document.createElement("div");
+    ph.className = "photo";
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = k < GOAL ? `No. ${k + 1} of ${GOAL}` : `No. ${k + 1}`;
+    ph.appendChild(badge);
+    if (Date.now() - rec.createdAt < 10 * 60 * 1000) {
+      const nb = document.createElement("span"); nb.className = "badge new"; nb.textContent = "Just joined"; ph.appendChild(nb);
+    }
+    if (rec.photo || rec.thumb) {
+      const img = document.createElement("img");
+      img.alt = `Photo of ${rec.name}`; img.draggable = false;
+      if (rec.thumb) { img.src = rec.thumb; img.className = "blur"; }
+      ph.appendChild(img);
+      if (rec.photo) {
+        const full = new Image();
+        full.onload = () => { img.src = rec.photo; img.className = ""; };
+        full.src = rec.photo;
+      }
+    } else {
+      const ini = document.createElement("div"); ini.className = "initials"; ini.textContent = initials(rec.name); ph.appendChild(ini);
+    }
+    card.appendChild(ph);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const nm = document.createElement("h3"); nm.className = "name"; nm.textContent = rec.name;
+    const chips = document.createElement("div"); chips.className = "chips";
+    if (rec.svc) { const c = document.createElement("span"); c.className = "chip"; c.textContent = rec.svc; chips.appendChild(c); }
+    const dt = fmtDate(rec.date);
+    if (dt) { const c = document.createElement("span"); c.className = "chip date"; c.textContent = dt; chips.appendChild(c); }
+    const sh = document.createElement("p");
+    sh.className = "shared" + (rec.shared ? "" : " none");
+    sh.textContent = rec.shared || "No sharing added.";
+    meta.append(nm, chips, sh);
+    if (rec.addedBy) {
+      const so = document.createElement("p"); so.className = "signoff";
+      const lead = document.createElement("span"); lead.textContent = "With thanks,";
+      const sig = document.createElement("span"); sig.className = "sig"; sig.textContent = rec.addedBy;
+      so.append(lead, sig);
+      meta.appendChild(so);
+    }
+    card.appendChild(meta);
+    return card;
+  }
+
+  function renderDeck() {
+    const list = newestFirst();
+    const n = list.length;
+    deck.textContent = "";
+    $("prevBtn").disabled = $("nextBtn").disabled = n < 2;
+    $("hint").hidden = n < 2;
+    if (!n) {
+      const e = document.createElement("div");
+      e.className = "empty";
+      const s = document.createElement("strong"); s.textContent = "No one on the wall yet";
+      const p = document.createElement("span"); p.textContent = "Tap the +1 more sticker to add the first person.";
+      e.append(s, p);
+      deck.appendChild(e);
+      $("pos").textContent = "0 / 0";
+      return;
+    }
+    if (currentId) { const i = list.findIndex((r) => r.id === currentId); pos = i >= 0 ? i : Math.min(pos, n - 1); }
+    pos = ((pos % n) + n) % n;
+    currentId = list[pos].id;
+    const layers = ["top", "second", "third"];
+    for (let i = Math.min(3, n) - 1; i >= 0; i--) deck.appendChild(cardEl(list[(pos + i) % n], layers[i]));
+    $("pos").textContent = `${pos + 1} / ${n}`;
+    const ahead = list[(pos + 3) % n];
+    if (ahead && ahead.photo) { const pre = new Image(); pre.src = ahead.photo; }
+  }
+  function showInDeck(id) { currentId = id; renderDeck(); }
+
+  let flying = false;
+  function fly(dir) { // -1 = swiped left (older), +1 = swiped right (newer)
+    const n = records.length;
+    const top = deck.querySelector(".card.top");
+    if (!top || flying) return;
+    if (n < 2) { top.animate([{ transform: "none" }, { transform: `translateX(${dir * 18}px) rotate(${dir * 3}deg)` }, { transform: "none" }], { duration: 320 }); return; }
+    flying = true;
+    haptic.tick();
+    const done = () => { flying = false; pos += dir < 0 ? 1 : -1; currentId = null; renderDeck(); };
+    if (reduceMotion) return done();
+    top.style.transition = "transform .3s cubic-bezier(.4,0,.8,.6), opacity .3s";
+    top.style.transform = `translateX(${dir * 130}%) rotate(${dir * 16}deg)`;
+    top.style.opacity = "0";
+    setTimeout(done, 280);
+  }
+  $("nextBtn").addEventListener("click", () => fly(-1));
+  $("prevBtn").addEventListener("click", () => fly(1));
+  deck.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") { e.preventDefault(); fly(-1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); fly(1); }
+  });
+
+  let drag = null;
+  deck.addEventListener("pointerdown", (e) => {
+    const card = e.target.closest(".card.top");
+    if (!card || e.target.closest("button") || flying) return;
+    drag = { card, x0: e.clientX, y0: e.clientY, dx: 0, t0: performance.now(), pid: e.pointerId, axis: null };
+  });
+  deck.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.axis && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+      drag.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (drag.axis === "y") { drag = null; return; }
+      try { drag.card.setPointerCapture(e.pointerId); } catch (_) {}
+      drag.card.style.transition = "none";
+      drag.card.style.animation = "none";
+    }
+    if (drag.axis === "x") {
+      drag.dx = dx;
+      drag.card.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    }
+  });
+  const endDrag = (e) => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const { card, dx, t0, axis } = drag;
+    drag = null;
+    if (axis !== "x") return;
+    const v = Math.abs(dx) / Math.max(1, performance.now() - t0);
+    if (Math.abs(dx) > 90 || (v > .5 && Math.abs(dx) > 30)) fly(dx < 0 ? -1 : 1);
+    else { card.style.transition = "transform .35s cubic-bezier(.3,1.5,.5,1)"; card.style.transform = ""; }
+  };
+  deck.addEventListener("pointerup", endDrag);
+  deck.addEventListener("pointercancel", endDrag);
+
+  /* ---------- Loading + live updates ---------- */
+  function applyRows(rows) {
+    const next = rows.map(clean);
+    const fresh = known === null ? [] : next.filter((r) => !known.has(r.id));
+    known = new Set(next.map((r) => r.id));
+    records = next;
+    setCount(records.length);
+    renderMosaic();
+    renderSvcChips();
+    refreshAdmin();
+    if (fresh.length) {
+      if (!drag) currentId = fresh[fresh.length - 1].id;
+      fresh.forEach((r) => {
+        if (r.id === ownPending) return;
+        celebrate(r.id);
+        haptic.tap();
+        const k = rankOf(r.id);
+        toast(k < GOAL ? `${r.name} just joined · No. ${k + 1}` : `${r.name} just joined`);
+      });
+    }
+    renderDeck();
+  }
+
+  async function load() {
+    if (demo) { applyRows(demoRows); return; }
+    const fetchRows = (cols) => sb.from("entries").select(cols).order("created_at", { ascending: true }).limit(1000);
+    const BASE = "id,created_at,name,date,svc,shared,thumb,photo_path";
+    let { data, error } = await fetchRows(hasAddedBy ? BASE + ",added_by" : BASE);
+    if (error && hasAddedBy && /added_by/.test(error.message || "")) {
+      hasAddedBy = false;
+      ({ data, error } = await fetchRows(BASE));
+    }
+    if (error) { $("offline").hidden = false; if (known === null) $("leftText").textContent = `${GOAL} spots to go`; return; }
+    $("offline").hidden = true;
+    applyRows(data || []);
+  }
+  let refetchT;
+  const refetchSoon = () => { clearTimeout(refetchT); refetchT = setTimeout(load, 250); };
+
+  function startData() {
+  if (demo) {
+    $("demo").hidden = false;
+  } else {
+    sb.channel("lba-wall")
+      .on("postgres_changes", { event: "*", schema: "public", table: "entries" }, refetchSoon)
+      .subscribe();
+    // Telegram pauses the page in the background; catch up when it comes back.
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refetchSoon(); });
+    setInterval(() => { if (!document.hidden) load(); }, 60000);
+  }
+  renderDeck();
+  load();
+  }
+
+  /* ---------- Modal ---------- */
+  const modal = $("modal");
+  let photo = null; // { blob, thumb }
+  let lastFocus = null;
+
+  function renderSvcChips() {
+    const counts = new Map();
+    records.forEach((r) => { if (r.svc) counts.set(r.svc, (counts.get(r.svc) || 0) + 1); });
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map((e) => e[0]);
+    const box = $("svcChips");
+    box.textContent = "";
+    box.hidden = !top.length;
+    const cur = $("fSvc").value.trim();
+    top.forEach((s) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "svc-chip" + (s === cur ? " on" : ""); b.textContent = s;
+      b.addEventListener("click", () => { $("fSvc").value = s; haptic.tick(); renderSvcChips(); });
+      box.appendChild(b);
+    });
+  }
+  $("fSvc").addEventListener("input", renderSvcChips);
+
+
+  let backFn = null;
+  function tgBack(fn) {
+    // Hide the light/dark button while a pop-up or the admin table is open, so it never covers a close button.
+    document.body.classList.toggle("overlay-open", !!fn);
+    if (!inTelegram) return;
+    try {
+      if (backFn) tg.BackButton.offClick(backFn);
+      backFn = fn;
+      if (fn) { tg.BackButton.onClick(fn); tg.BackButton.show(); } else tg.BackButton.hide();
+    } catch (_) {}
+  }
+  function openModal() {
+    lastFocus = document.activeElement;
+    const k = records.length;
+    $("mSpot").textContent = k < GOAL ? `No. ${k + 1} of ${GOAL}` : `No. ${k + 1} · beyond the goal`;
+    if (!$("fDate").value) $("fDate").value = todayISO();
+    $("formErr").hidden = true;
+    renderSvcChips();
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+    tgBack(closeModal);
+  }
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = adminOpen ? "hidden" : "";
+    tgBack(adminOpen ? closeAdmin : null);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  $("addBtn").addEventListener("click", () => { haptic.tap(); openModal(); });
+  $("closeBtn").addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!modal.hidden) closeModal();
+    else if (!adminLogin.hidden) closeAdminLogin();
+    else if (adminOpen) closeAdmin();
+  });
+
+  async function loadImage(file) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    try { await img.decode(); } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
+    return img;
+  }
+  function draw(img, maxSide, square) {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const cv = document.createElement("canvas");
+    const ctx = cv.getContext("2d");
+    if (square) {
+      const m = Math.min(w, h);
+      cv.width = cv.height = maxSide;
+      ctx.drawImage(img, (w - m) / 2, (h - m) / 2, m, m, 0, 0, maxSide, maxSide);
+    } else {
+      const s = Math.min(1, maxSide / Math.max(w, h));
+      cv.width = Math.round(w * s); cv.height = Math.round(h * s);
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    }
+    return cv;
+  }
+  const toBlob = (cv, q) => new Promise((res) => cv.toBlob(res, "image/jpeg", q));
+  async function processPhoto(file) {
+    const img = await loadImage(file);
+    const big = draw(img, 1080, false);
+    let q = .82, blob = await toBlob(big, q);
+    while (blob && blob.size > 450000 && q > .45) { q -= .1; blob = await toBlob(big, q); }
+    if (!blob || blob.size > 500000) throw new Error("too big");
+    const thumb = draw(img, 72, true).toDataURL("image/jpeg", .72);
+    return { blob, thumb };
+  }
+
+  $("fPhoto").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    $("pickTitle").textContent = "Preparing photo…";
+    try {
+      photo = await processPhoto(file);
+      const thumb = photo.thumb;
+      const t = $("thumb"); t.textContent = "";
+      const i = document.createElement("img"); i.alt = ""; i.src = thumb; t.appendChild(i);
+      $("pickTitle").textContent = "Photo added";
+      $("pickSub").textContent = "Tap to change it";
+    } catch (_) {
+      photo = null;
+      $("thumb").innerHTML = CAMERA_SVG;
+      $("pickTitle").textContent = "That photo couldn't be read";
+      $("pickSub").textContent = "Try a different photo";
+    }
+  });
+
+  function resetForm() {
+    $("form").reset();
+    $("fDate").value = todayISO();
+    photo = null;
+    $("thumb").innerHTML = CAMERA_SVG;
+    $("pickTitle").textContent = "Add a photo";
+    $("pickSub").textContent = "Take one or choose from your phone";
+  }
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("formErr");
+    const name = $("fName").value.trim(), date = $("fDate").value, svc = $("fSvc").value.trim(), shared = $("fShared").value.trim();
+    const missing = [!name && "a name", !date && "a date", !svc && "the service"].filter(Boolean);
+    if (missing.length) { err.textContent = `Add ${missing.join(", ")} to continue.`; err.hidden = false; haptic.bad(); return; }
+
+    const btn = $("submitBtn");
+    btn.disabled = true; btn.textContent = "Adding…"; err.hidden = true;
+    const id = uuid();
+    ownPending = id;
+    try {
+      let photo_path = null;
+      if (photo) {
+        photo_path = id + ".jpg";
+        if (demo) {
+          // kept only in memory
+        } else {
+          const up = await sb.storage.from("photos").upload(photo_path, photo.blob, { contentType: "image/jpeg", upsert: false, cacheControl: "31536000" });
+          if (up.error) throw { stage: "photo", error: up.error };
+        }
+      }
+      const row = { id, name, date, svc, shared, thumb: photo ? photo.thumb : null, photo_path };
+      if (tgName && hasAddedBy) row.added_by = tgName;
+      if (demo) {
+        demoRows.push({ ...row, created_at: new Date().toISOString(), _blobUrl: photo ? URL.createObjectURL(photo.blob) : null });
+      } else {
+        let ins = await sb.from("entries").insert(row);
+        if (ins.error && "added_by" in row && /added_by/.test(ins.error.message || "")) {
+          hasAddedBy = false; delete row.added_by;
+          ins = await sb.from("entries").insert(row);
+        }
+        if (ins.error) throw { stage: "row", error: ins.error };
+      }
+      await load();
+      closeModal();
+      resetForm();
+      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      const k = rankOf(id);
+      haptic.ok();
+      celebrate(id, reduceMotion ? 0 : 650);
+      toast(k >= 0 && k < GOAL ? `Welcome, ${name}. You're No. ${k + 1}.` : `Welcome, ${name}.`);
+      currentId = id; renderDeck();
+    } catch (ex) {
+      ownPending = null;
+      haptic.bad();
+      err.textContent = ex && ex.stage === "photo"
+        ? "The photo didn't upload. Try a smaller photo, or add them without one."
+        : "That didn't save. Check your connection and try again.";
+      err.hidden = false;
+      console.error(ex);
+    } finally {
+      btn.disabled = false; btn.textContent = "Add to the wall";
+    }
+  });
+
+  /* ---------- Admin table ---------- */
+  // Edits and deletes go through Supabase functions that check the admin password on the server.
+  let adminPw = null, adminPending = false;
+  const adminLogin = $("adminLogin"), adminPanel = $("adminPanel"), apBody = $("apBody");
+  const rowStatus = new Map(); // id -> { cls, text, at }
+
+  function openAdminLogin() {
+    $("alErr").hidden = true;
+    $("alDemo").hidden = !demo;
+    $("alPw").value = "";
+    adminLogin.hidden = false;
+    document.body.style.overflow = "hidden";
+    tgBack(closeAdminLogin);
+    setTimeout(() => { try { $("alPw").focus(); } catch (_) {} }, 80);
+  }
+  function closeAdminLogin() {
+    adminLogin.hidden = true;
+    document.body.style.overflow = adminOpen ? "hidden" : "";
+    tgBack(adminOpen ? closeAdmin : null);
+  }
+  function openAdmin() {
+    adminOpen = true;
+    adminPanel.hidden = false;
+    document.body.style.overflow = "hidden";
+    renderAdmin();
+    tgBack(closeAdmin);
+  }
+  function closeAdmin() {
+    adminOpen = false;
+    adminPanel.hidden = true;
+    document.body.style.overflow = "";
+    tgBack(null);
+  }
+  $("adminBtn").addEventListener("click", () => { haptic.tap(); adminPw !== null ? openAdmin() : openAdminLogin(); });
+  $("alClose").addEventListener("click", closeAdminLogin);
+  adminLogin.addEventListener("click", (e) => { if (e.target === adminLogin) closeAdminLogin(); });
+  $("apClose").addEventListener("click", closeAdmin);
+  $("apSearch").addEventListener("input", renderAdmin);
+
+  const missingSetup = (err) => /admin_|function|PGRST202/i.test(((err && err.message) || "") + ((err && err.code) || ""));
+  $("alForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pwv = $("alPw").value;
+    const err = $("alErr");
+    if (!pwv) { $("alPw").focus(); return; }
+    const btn = $("alBtn");
+    btn.disabled = true; btn.textContent = "Checking…"; err.hidden = true;
+    let ok = false;
+    if (demo) ok = true;
+    else {
+      const { data, error } = await sb.rpc("admin_check", { p_password: pwv });
+      if (error) {
+        err.textContent = missingSetup(error)
+          ? "Admin tools aren't set up yet. Run the latest setup.sql in Supabase, then try again."
+          : "Couldn't check the password. Check your connection and try again.";
+        err.hidden = false; btn.disabled = false; btn.textContent = "Open admin table"; haptic.bad();
+        return;
+      }
+      ok = data === true;
+    }
+    btn.disabled = false; btn.textContent = "Open admin table";
+    if (!ok) { err.textContent = "That's not the admin password."; err.hidden = false; haptic.bad(); $("alPw").select(); return; }
+    adminPw = pwv;
+    haptic.ok();
+    closeAdminLogin();
+    openAdmin();
+  });
+
+  function fmtAdded(ms) {
+    if (!ms) return "";
+    return new Date(ms).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  }
+  function setStatus(tr, cls, text) {
+    const id = tr.dataset.id;
+    rowStatus.set(id, { cls, text, at: Date.now() });
+    const cell = tr.querySelector(".row-status");
+    cell.className = "row-status" + (cls ? " " + cls : "");
+    cell.textContent = text;
+  }
+  function el(tag, cls, text) { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function inputCell(field, value, cls, type) {
+    const td = el("td");
+    const inp = type === "textarea" ? el("textarea", "cell-input " + cls) : el("input", "cell-input " + cls);
+    if (type !== "textarea") inp.type = type || "text";
+    inp.value = value || "";
+    inp.dataset.field = field;
+    const max = { name: 60, svc: 40, shared: 400, added_by: 60 }[field];
+    if (max) inp.maxLength = max;
+    if (type === "textarea") inp.rows = 2;
+    inp.setAttribute("aria-label", { name: "Name", date: "Date", svc: "Service", shared: "What they shared", added_by: "Added by" }[field]);
+    td.appendChild(inp);
+    return td;
+  }
+
+  function renderAdmin() {
+    if (!adminOpen) return;
+    const q = $("apSearch").value.trim().toLowerCase();
+    const all = records.map((r, i) => ({ r, n: i + 1 })).reverse();
+    const rows = q ? all.filter(({ r }) => [r.name, r.svc, r.shared, r.addedBy].join(" ").toLowerCase().includes(q)) : all;
+    $("apCount").textContent = `${records.length} ${records.length === 1 ? "person" : "people"}` + (q ? ` · ${rows.length} shown` : "");
+    $("apEmpty").hidden = rows.length > 0;
+    $("apEmpty").textContent = records.length ? "No one matches that search." : "No one on the wall yet.";
+    apBody.textContent = "";
+    for (const { r, n } of rows) {
+      const tr = el("tr");
+      tr.dataset.id = r.id;
+      tr.appendChild(el("td", "num", `No. ${n}`));
+
+      const phTd = el("td", "ph-td");
+      const ph = el("div", "ph-cell");
+      const mini = el("div", "ph-mini");
+      if (r.thumb || r.photo) { const im = el("img"); im.alt = ""; im.src = r.thumb || r.photo; mini.appendChild(im); }
+      else mini.textContent = initials(r.name);
+      const acts = el("div", "ph-actions");
+      const change = el("label", "link-btn", r.thumb || r.photo ? "Change" : "Add");
+      const fi = el("input"); fi.type = "file"; fi.accept = "image/*"; fi.dataset.act = "photo"; fi.setAttribute("aria-label", `Photo for ${r.name}`);
+      change.appendChild(fi);
+      acts.appendChild(change);
+      if (r.thumb || r.photo) { const rm = el("button", "link-btn", "Remove"); rm.type = "button"; rm.dataset.act = "rmphoto"; acts.appendChild(rm); }
+      ph.append(mini, acts);
+      phTd.appendChild(ph);
+      tr.appendChild(phTd);
+
+      tr.appendChild(inputCell("name", r.name, "c-name"));
+      tr.appendChild(inputCell("date", r.date, "c-date", "date"));
+      tr.appendChild(inputCell("svc", r.svc, "c-svc"));
+      tr.appendChild(inputCell("shared", r.shared, "c-shared", "textarea"));
+      tr.appendChild(inputCell("added_by", r.addedBy, "c-by"));
+      tr.appendChild(el("td", "added", fmtAdded(r.createdAt)));
+
+      const st = rowStatus.get(r.id);
+      const stTd = el("td", "row-status");
+      if (st && Date.now() - st.at < 4000) { if (st.cls) stTd.classList.add(st.cls); stTd.textContent = st.text; }
+      tr.appendChild(stTd);
+
+      const delTd = el("td", "del-cell");
+      const del = el("button", "del-btn", "Delete"); del.type = "button"; del.dataset.act = "delete";
+      delTd.appendChild(del);
+      tr.appendChild(delTd);
+      apBody.appendChild(tr);
+    }
+  }
+  function refreshAdmin() {
+    if (!adminOpen) return;
+    if (apBody.contains(document.activeElement)) { adminPending = true; return; }
+    renderAdmin();
+  }
+  apBody.addEventListener("focusout", () => {
+    setTimeout(() => {
+      if (adminPending && !apBody.contains(document.activeElement)) { adminPending = false; renderAdmin(); }
+    }, 120);
+  });
+  apBody.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.matches("input.cell-input")) { e.preventDefault(); e.target.blur(); }
+  });
+
+  function adminFail(tr, error) {
+    console.error(error);
+    haptic.bad();
+    const msg = (error && error.message) || "";
+    if (/not allowed/i.test(msg)) {
+      adminPw = null; closeAdmin();
+      toast("The admin password has changed. Enter it again.");
+      return;
+    }
+    if (tr) setStatus(tr, "err", (error && error.code) === "23514" ? "Too long, or a required box is empty" : "Didn't save. Try again.");
+    else toast("That didn't work. Try again.");
+  }
+  const rpc = (fn, args) => sb.rpc(fn, Object.assign({ p_password: adminPw }, args));
+
+  apBody.addEventListener("change", async (e) => {
+    const tr = e.target.closest("tr");
+    if (!tr) return;
+    const id = tr.dataset.id;
+
+    if (e.target.dataset.act === "photo") {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      setStatus(tr, "", "Uploading…");
+      try {
+        const p = await processPhoto(file);
+        const path = uuid() + ".jpg";
+        if (demo) {
+          const d = demoRows.find((x) => x.id === id);
+          if (d) { d.thumb = p.thumb; d.photo_path = path; d._blobUrl = URL.createObjectURL(p.blob); }
+        } else {
+          const up = await sb.storage.from("photos").upload(path, p.blob, { contentType: "image/jpeg", upsert: false, cacheControl: "31536000" });
+          if (up.error) throw up.error;
+          const { error } = await rpc("admin_set_photo", { p_id: id, p_thumb: p.thumb, p_photo_path: path });
+          if (error) return adminFail(tr, error);
+        }
+        setStatus(tr, "ok", "Photo saved");
+        haptic.ok();
+        load();
+      } catch (ex) { adminFail(tr, ex); }
+      return;
+    }
+
+    if (!e.target.dataset.field) return;
+    const get = (f) => tr.querySelector(`[data-field="${f}"]`).value.trim();
+    const v = { name: get("name"), date: get("date"), svc: get("svc"), shared: get("shared"), added_by: get("added_by") };
+    if (!v.name || !v.date || !v.svc) { setStatus(tr, "err", "Name, date and service can't be empty"); haptic.bad(); return; }
+    setStatus(tr, "", "Saving…");
+    if (demo) {
+      const d = demoRows.find((x) => x.id === id);
+      if (d) Object.assign(d, v, { added_by: v.added_by || null });
+    } else {
+      const { error } = await rpc("admin_update_entry", {
+        p_id: id, p_name: v.name, p_date: v.date, p_svc: v.svc, p_shared: v.shared, p_added_by: v.added_by || null,
+      });
+      if (error) return adminFail(tr, error);
+    }
+    setStatus(tr, "ok", "Saved ✓");
+    tr.classList.remove("saved"); void tr.offsetWidth; tr.classList.add("saved");
+    haptic.tick();
+    load();
+  });
+
+  apBody.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const tr = btn.closest("tr");
+    const id = tr.dataset.id;
+    const rec = records.find((r) => r.id === id);
+    const name = rec ? rec.name : "this person";
+
+    if (btn.dataset.act === "rmphoto") {
+      setStatus(tr, "", "Removing photo…");
+      if (demo) { const d = demoRows.find((x) => x.id === id); if (d) { d.thumb = null; d.photo_path = null; d._blobUrl = null; } }
+      else {
+        const { error } = await rpc("admin_set_photo", { p_id: id, p_thumb: null, p_photo_path: null });
+        if (error) return adminFail(tr, error);
+      }
+      setStatus(tr, "ok", "Photo removed");
+      load();
+      return;
+    }
+
+    if (btn.dataset.act === "delete") {
+      const cell = btn.parentElement;
+      const box = el("div", "del-confirm");
+      const yes = el("button", "yes", "Delete"); yes.type = "button"; yes.dataset.act = "confirmdelete";
+      const no = el("button", "", "Keep"); no.type = "button"; no.dataset.act = "keep";
+      box.append(el("span", "", `Delete ${name}?`), yes, no);
+      cell.replaceChildren(box);
+      haptic.tap();
+      return;
+    }
+    if (btn.dataset.act === "keep") {
+      const del = el("button", "del-btn", "Delete"); del.type = "button"; del.dataset.act = "delete";
+      btn.closest("td").replaceChildren(del);
+      return;
+    }
+    if (btn.dataset.act === "confirmdelete") {
+      btn.disabled = true;
+      if (demo) { const i = demoRows.findIndex((x) => x.id === id); if (i >= 0) demoRows.splice(i, 1); }
+      else {
+        const { error } = await rpc("admin_delete_entry", { p_id: id });
+        if (error) { btn.disabled = false; return adminFail(tr, error); }
+      }
+      haptic.ok();
+      tr.classList.add("removing");
+      toast(`${name} was removed from the wall`);
+      setTimeout(load, 300);
+    }
+  });
+
+  /* ---------- Password lock ---------- */
+  // SHA-256 of the password, so the password itself isn't written in this file.
+  // To change it: replace this with the SHA-256 of the new password (lowercase).
+  const PASSWORD_HASH = "3a2c303164680af0109092b6e654db91481443c1e18a5b311390ad3438119748";
+  const UNLOCK_KEY = "lba100-unlocked";
+  const WRONG = [
+    ["Nope. That password is un-LBA-lievable.", "Try again, we believe in you."],
+    ["Close, but no orange.", "Your tile stays grey for now. Try again."],
+    ["Wrong key! Even the tiles are grey about it.", "Have another go."],
+    ["Access denied. Don't worry, we won't tile anyone.", "Check with your organiser and try again."],
+    ["Hmm. That's a pass-weird, not a password.", "One more try?"],
+    ["Plot twist: that's not it.", "The wall is rooting for you. Try again."],
+    ["Nice try! The tiles are not impressed.", "Psst, check for typos."],
+  ];
+  let wrongCount = 0;
+  const lock = $("lock"), lockForm = $("lockForm"), pw = $("lockPw"), lockMsg = $("lockMsg");
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function replayEntrance() {
+    if (reduceMotion) return;
+    tiles.forEach((t) => { t.style.animation = "none"; });
+    void mosaic.offsetWidth;
+    tiles.forEach((t) => { t.style.animation = ""; });
+  }
+  function unlock(animate) {
+    try { localStorage.setItem(UNLOCK_KEY, PASSWORD_HASH); } catch (_) {}
+    startData();
+    if (!animate || reduceMotion) { lock.hidden = true; return; }
+    lock.classList.add("open");
+    haptic.ok();
+    setTimeout(() => {
+      lock.classList.add("leaving");
+      replayEntrance();
+      setTimeout(() => { lock.hidden = true; }, 560);
+    }, 380);
+  }
+
+  let remembered = false;
+  try { remembered = localStorage.getItem(UNLOCK_KEY) === PASSWORD_HASH; } catch (_) {}
+  if (remembered) {
+    unlock(false);
+  } else {
+    setTimeout(() => { try { pw.focus(); } catch (_) {} }, 300);
+  }
+
+  $("pwToggle").addEventListener("click", () => {
+    const show = pw.type === "password";
+    pw.type = show ? "text" : "password";
+    $("pwToggle").textContent = show ? "Hide" : "Show";
+    $("pwToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
+  });
+
+  lockForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const guess = pw.value.trim().toLowerCase();
+    if (!guess) { pw.focus(); return; }
+    let ok = false;
+    try { ok = (await sha256(guess)) === PASSWORD_HASH; } catch (_) { ok = false; }
+    if (ok) { lockMsg.hidden = true; pw.blur(); unlock(true); return; }
+
+    const [line, sub] = WRONG[wrongCount % WRONG.length];
+    wrongCount++;
+    lockMsg.textContent = "";
+    const b = document.createElement("span"); b.textContent = line;
+    const sm = document.createElement("small"); sm.textContent = wrongCount >= 3 ? `Attempt ${wrongCount}. ${sub}` : sub;
+    lockMsg.append(b, sm);
+    lockMsg.hidden = false;
+    lockMsg.style.animation = "none"; void lockMsg.offsetWidth; lockMsg.style.animation = "";
+    lockForm.classList.remove("shake"); void lockForm.offsetWidth; lockForm.classList.add("shake");
+    haptic.bad();
+    pw.select();
+  });
+})();
+</script>
+</body>
+</html>
